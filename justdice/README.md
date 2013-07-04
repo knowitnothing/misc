@@ -4,7 +4,7 @@ What are these things ?
 Around here you will find things for testing gambling strategies that
 can be directly applied in https://just-dice.com (the current code can
 be modified to perform other tasks in that site too). The gambling is
-performed using Python and Selenium (you might need to
+performed using Python and Selenium (you might want to
 `easy_install selenium` if you don't have it).
 
 Everything is mostly undocumented for the moment, feel free to find out
@@ -31,7 +31,7 @@ the "-d" flag is passed, since this flag uses the dummy driver which does not
 ever touch the actual gambling site. The resulting PNG file (in this example)
 might look like this:
 
-	![perf](https://raw.github.com/knowitnothing/misc/master/justdice/img/perf.png)
+![perf](https://raw.github.com/knowitnothing/misc/master/justdice/img/perf.png)
 
 In this example, the starting bank roll had 1 Bitcoin, the target was set to 1.6 BTC,
 and the blue line indicates the balance after each roll. This strategy employed
