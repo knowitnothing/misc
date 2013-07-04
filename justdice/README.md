@@ -31,7 +31,7 @@ the "-d" flag is passed, since this flag uses the dummy driver which does not
 ever touch the actual gambling site. The resulting PNG file (in this example)
 might look like this:
 
-	![takecare](https://raw.github.com/knowitnothing/misc/justdice/img/perf.png)
+	![perf](https://raw.github.com/knowitnothing/misc/master/justdice/img/perf.png)
 
 In this example, the starting bank roll had 1 Bitcoin, the target was set to 1.6 BTC,
 and the blue line indicates the balance after each roll. This strategy employed
