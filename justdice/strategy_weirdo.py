@@ -59,12 +59,13 @@ def strategy(justdice, roll):
                 num, roll_mode))
             sys.stdout.write('BANK: %s\n' % format(bankroll, '.8f'))
             sys.stdout.flush()
-            sys.stderr.write('\n')
+            sys.stderr.write('.')
+            sys.stderr.flush()
 
     except KeyboardInterrupt:
         pass
 
-    sys.stderr.write('Win ratio: %d/%d = %g\n' % (win, total,
+    sys.stderr.write('\nWin ratio: %d/%d = %g\n' % (win, total,
             float(win)/total) if total else 0)
 
 

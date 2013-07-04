@@ -158,8 +158,8 @@ class Justdice:
             if 'waiting' in element.get_attribute('class'):
                 time.sleep(0.1)
             else:
-                sys.stderr.write('Time to complete bet: %s\n' % (
-                    time.time() - now))
+                #sys.stderr.write('Time to complete bet: %s\n' % (
+                #    time.time() - now))
                 break
         else:
             return True
