@@ -9,8 +9,8 @@ def run_strategy(justdice, roll, kwargs):
     to_bet = kwargs['to_bet']
     bankroll = kwargs['bankroll']
     target = kwargs['target']
-    simulation = kwargs['simulation']
     # Optional parameters.
+    simulation = kwargs.get('simulation', True)
     roll_high = kwargs.get('roll_high', True)
     getout = kwargs.get('getout', Decimal('0'))
     strat_name = kwargs.get('strat_name', 'no name')
