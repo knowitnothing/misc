@@ -4,50 +4,64 @@ from decimal import Decimal
 from justdice_selenium import Justdice
 
 def run_strategy(justdice, roll, kwargs):
+    data = {}
     # Required parameters.
-    win_chance = kwargs['win_chance']
-    to_bet = kwargs['to_bet']
-    bankroll = kwargs['bankroll']
-    target = kwargs['target']
+    data['win_chance'] = kwargs['win_chance']
+    data['to_bet'] = kwargs['to_bet']
+    data['bankroll'] = kwargs['bankroll']
+    data['target'] = kwargs['target']
     # Optional parameters.
-    simulation = kwargs.get('simulation', True)
-    roll_high = kwargs.get('roll_high', True)
-    getout = kwargs.get('getout', Decimal('0'))
-    strat_name = kwargs.get('strat_name', 'no name')
-    lose_multiplier = kwargs.get('lose_multiplier', 1)
-    win_multiplier = kwargs.get('win_multiplier', 1)
-    reset_on_win = kwargs.get('reset_on_win', False)
-    reset_on_lose = kwargs.get('reset_on_lose', False)
+    data['simulation'] = kwargs.get('simulation', True)
+    data['roll_high'] = kwargs.get('roll_high', True)
+    data['getout'] = kwargs.get('getout', Decimal('0'))
+    data['strat_name'] = kwargs.get('strat_name', 'no name')
+    data['lose_multiplier'] = kwargs.get('lose_multiplier', 1)
+    data['win_multiplier'] = kwargs.get('win_multiplier', 1)
+    data['reset_on_win'] = kwargs.get('reset_on_win', False)
+    data['reset_on_lose'] = kwargs.get('reset_on_lose', False)
 
 
-    start_bet = kwargs['to_bet']
-    payout = (Decimal(100) - justdice.house_edge) / win_chance
+    def handle_win(data):
+        if data['reset_on_win']:
+            data['to_bet'] = data['start_bet']
+        else:
+            data['to_bet'] *= data['win_multiplier']
+    def handle_loss(data):
+        if data['reset_on_lose']:
+            data['to_bet'] = data['start_bet']
+        else:
+            data['to_bet'] *= data['lose_multiplier']
+
+    data['start_bet'] = kwargs['to_bet']
+    payout = (Decimal(100) - justdice.house_edge) / data['win_chance']
 
     # Game stats
     unknown = 0
     win = 0
     total = 0
 
-    sys.stdout.write("Strategy: %s\n" % strat_name.encode('utf-8'))
-    sys.stdout.write("Starting with BANK of %s BTC\n" % format(bankroll,'.8f'))
-    sys.stdout.write("Target: %s BTC\n" % format(target, '.8f'))
+    sys.stdout.write("Strategy: %s\n" % data['strat_name'].encode('utf-8'))
+    sys.stdout.write("Starting with BANK of %s BTC\n" % format(
+        data['bankroll'], '.8f'))
+    sys.stdout.write("Target: %s BTC\n" % format(data['target'], '.8f'))
 
     # Keep rolling.
     try:
         # Press Control-C to stop early.
 
-        while bankroll >= to_bet and (bankroll - to_bet) >= getout:
-            if bankroll >= target:
+        while (data['bankroll'] >= data['to_bet'] and
+                (data['bankroll'] - data['to_bet']) >= data['getout']):
+            if data['bankroll'] >= data['target']:
                 # Ok, I got enough (you wish).
                 break
 
-            sys.stdout.write('Bet: %s BTC\n' % format(to_bet, '.8f'))
+            sys.stdout.write('Bet: %s BTC\n' % format(data['to_bet'], '.8f'))
 
-            roll_mode = 'HIGH' if roll_high else 'LOW'
+            roll_mode = 'HIGH' if data['roll_high'] else 'LOW'
             result, num = roll(
-                    win_chance=win_chance,
-                    btc_to_bet=0 if simulation else to_bet,
-                    high=roll_high)
+                    win_chance=data['win_chance'],
+                    btc_to_bet=0 if data['simulation'] else data['to_bet'],
+                    high=data['roll_high'])
             if not result:
                 sys.stderr.write('Bet took too long, reloading.\n')
                 justdice.reload_page()
@@ -58,21 +72,18 @@ def run_strategy(justdice, roll, kwargs):
             total += 1
             if result > 0: # Win
                 win += 1
-                bankroll += to_bet * payout - to_bet
-                to_bet *= win_multiplier
-                if reset_on_win:
-                    to_bet = start_bet
+                data['bankroll'] += (data['to_bet'] * payout -
+                                     data['to_bet'])
+                handle_win(data)
             else:
-                bankroll -= to_bet
-                to_bet *= lose_multiplier
-                if reset_on_lose:
-                    to_bet = start_bet
+                data['bankroll'] -= data['to_bet']
+                handle_loss(data)
 
-            sys.stdout.write('%s %s (%s)\n' % ('W' if result > 0 else 'L',
-                num, roll_mode))
-            sys.stdout.write('BANK: %s\n' % format(bankroll, '.8f'))
+            r = 'W' if result > 0 else 'L'
+            sys.stdout.write('%s %s (%s)\n' % (r, num, roll_mode))
+            sys.stdout.write('BANK: %s\n' % format(data['bankroll'], '.8f'))
             sys.stdout.flush()
-            sys.stderr.write('.')
+            sys.stderr.write(r)
             sys.stderr.flush()
 
     except KeyboardInterrupt:
@@ -80,8 +91,8 @@ def run_strategy(justdice, roll, kwargs):
 
     sys.stderr.write('\nWin ratio: %d/%d = %g\n' % (win, total,
             float(win)/total) if total else 0)
-    sys.stderr.write("Final bank roll: %s\n" % bankroll)
-    return bankroll
+    sys.stderr.write("Final bank roll: %s\n" % data['bankroll'])
+    return data['bankroll']
 
 
 def main(args, func):
