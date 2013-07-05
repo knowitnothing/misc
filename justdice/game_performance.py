@@ -19,7 +19,7 @@ for line in sys.stdin:
         strat_name = line
 
 #print bank
-print bank_start, target
+print bank_start, target, bank[-1]
 
 x_data = range(1 + len(bank))
 y_data = [bank_start] + bank
