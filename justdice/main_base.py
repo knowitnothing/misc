@@ -3,6 +3,19 @@ from decimal import Decimal
 
 from justdice_selenium import Justdice
 
+
+def _handle_win(data):
+    if data['reset_on_win']:
+        data['to_bet'] = data['start_bet']
+    else:
+        data['to_bet'] *= data['win_multiplier']
+
+def _handle_loss(data):
+    if data['reset_on_lose']:
+        data['to_bet'] = data['start_bet']
+    else:
+        data['to_bet'] *= data['lose_multiplier']
+
 def run_strategy(justdice, roll, kwargs):
     data = {}
     # Required parameters.
@@ -20,17 +33,6 @@ def run_strategy(justdice, roll, kwargs):
     data['reset_on_win'] = kwargs.get('reset_on_win', False)
     data['reset_on_lose'] = kwargs.get('reset_on_lose', False)
 
-
-    def handle_win(data):
-        if data['reset_on_win']:
-            data['to_bet'] = data['start_bet']
-        else:
-            data['to_bet'] *= data['win_multiplier']
-    def handle_loss(data):
-        if data['reset_on_lose']:
-            data['to_bet'] = data['start_bet']
-        else:
-            data['to_bet'] *= data['lose_multiplier']
 
     data['start_bet'] = kwargs['to_bet']
     payout = (Decimal(100) - justdice.house_edge) / data['win_chance']
@@ -74,10 +76,10 @@ def run_strategy(justdice, roll, kwargs):
                 win += 1
                 data['bankroll'] += (data['to_bet'] * payout -
                                      data['to_bet'])
-                handle_win(data)
+                _handle_win(data)
             else:
                 data['bankroll'] -= data['to_bet']
-                handle_loss(data)
+                _handle_loss(data)
 
             r = 'W' if result > 0 else 'L'
             sys.stdout.write('%s %s (%s)\n' % (r, num, roll_mode))
