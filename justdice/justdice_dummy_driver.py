@@ -4,7 +4,7 @@ import hashlib
 import threading
 from decimal import Decimal
 
-_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#*-.@'
+_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._'
 def gen_server_seed(size=64):
     return ''.join(random.choice(_chars) for _ in xrange(size))
 
