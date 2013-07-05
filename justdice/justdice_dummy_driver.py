@@ -5,7 +5,7 @@ import threading
 from decimal import Decimal
 
 _chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!#*-.@'
-def _gen_server_seed(size=64):
+def gen_server_seed(size=64):
     return ''.join(random.choice(_chars) for _ in xrange(size))
 
 
@@ -45,7 +45,7 @@ def _roll(dummy_justdice, high=True):
 
 def _new_seed(dummy_justdice):
     def do_it():
-        dummy_justdice._server_seed = _gen_server_seed()
+        dummy_justdice._server_seed = gen_server_seed()
         dummy_justdice._nonce = 1
         _dummy_elements['new_shash'].text = hashlib.sha256(
                 dummy_justdice._server_seed).hexdigest()
@@ -117,7 +117,7 @@ class DummyDriver(object):
     def get(self, url):
         if 'just-dice' in url:
             self._justdice = True
-            self._server_seed = _gen_server_seed()
+            self._server_seed = gen_server_seed()
             self._nonce = 1
             self._client_seed = "0" # Customizable.
             _make_dummy_elements(self)

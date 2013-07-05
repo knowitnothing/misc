@@ -35,7 +35,7 @@ def run_strategy(justdice, roll, kwargs):
 
 
     data['start_bet'] = kwargs['to_bet']
-    payout = (Decimal(100) - justdice.house_edge) / data['win_chance']
+    data['payout'] = (Decimal(100) - justdice.house_edge) / data['win_chance']
 
     # Game stats
     unknown = 0
@@ -74,7 +74,7 @@ def run_strategy(justdice, roll, kwargs):
             total += 1
             if result > 0: # Win
                 win += 1
-                data['bankroll'] += (data['to_bet'] * payout -
+                data['bankroll'] += (data['to_bet'] * data['payout'] -
                                      data['to_bet'])
                 _handle_win(data)
             else:
