@@ -14,7 +14,7 @@ and then the just-dice server will not be used, all the rolls will be do offline
 There are also two basic strategies, the classical
 [martingale](strategy_martingale.py) and a [weird one](strategy_weirdo.py),
 that can be used as examples for other ones. The output from these strategies
-can be used with the [basic plot](game_performance.py) module for plotting the
+can be used with the [basic plot](../game_performance.py) module for plotting the
 performance of the strategy.
 
 Example:
