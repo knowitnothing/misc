@@ -33,8 +33,6 @@ class JustDiceSocket(object):
         self._setup_sock(response)
 
     def _setup_sock(self, response):
-        self.wins = 0
-        self.losses = 0
         self.csrf = None
         self.user_id = None
         self.logged_in = False
@@ -48,11 +46,6 @@ class JustDiceSocket(object):
         self.sock.on('set_hash', self.on_set_hash)
         self.sock.on('reload', self.on_reload)
         self.sock.on('result', self.on_result)
-
-        self.sock.on('old_results', lambda *args: None)
-        self.sock.on('chat', lambda *args: None)
-        self.sock.on('wins', lambda *args: None)
-        self.sock.on('losses', lambda *args: None)
 
 
     def bet(self, win_chance, amount, roll_hi):
