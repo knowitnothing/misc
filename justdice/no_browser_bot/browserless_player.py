@@ -2,26 +2,40 @@ import sys
 import time
 from decimal import Decimal
 
-def main(play):
-    new_seed = True
+def main(play, new_seed=True):
     args = sys.argv
 
+    login_info = None
+    google_2fa = None
     if len(args) < 3:
         sys.stderr.write("WARNING user and password were not specified.\n")
-        sys.stderr.write("Expected usage: %s user password [-dummy]\n"%args[0])
+        sys.stderr.write("Expected usage: %s user password [ga] [-dummy]\n" %
+                args[0])
         sys.stderr.write("***" * 15 + '\n')
         user, pwd = None, None
     else:
         user, pwd = args[1:3]
 
-    if len(sys.argv) == 4 and args[3].startswith('-d'):
+    dummy = False
+    if len(args) >= 4:
+        if len(args) == 5:
+            google_2fa = args[3]
+            if args[4].startswith('-d'):
+                dummy = True
+        else:
+            if args[3].startswith('-d'):
+                dummy = True
+            else:
+                google_2fa = args[3]
+    if dummy:
         from browserless_dummy import load_justdice, JustDiceSocket
     else:
         from browserless_driver import load_justdice, JustDiceSocket
 
     sys.stderr.write("Connecting...\n")
     response = load_justdice()
-    login_info = {'user': user, 'pwd': pwd} if user is not None else None
+    if user is not None:
+        login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa}
     justdice = JustDiceSocket(response, login=login_info)
     sys.stderr.write("Logging in...")
     sys.stderr.flush()
@@ -62,6 +76,9 @@ def roll_dice(justdice, win_chance, amount, roll_hi, verbose=False):
             sys.stdout.write('.')
             sys.stdout.flush()
         time.sleep(0.1)
+    if justdice.waiting_bet_result is None:
+        # Could not place the bet.
+        raise Exception
     if verbose:
         print " %s %s" % (format(justdice.last_bet["lucky_number"], '07.4f'),
                 "win!" if justdice.last_bet['win'] else "lose :/")
@@ -81,6 +98,7 @@ class Strategy(object):
         self.to_bet = kwargs['to_bet']
         self.bankroll = kwargs['bankroll']
         # Optional parameters.
+        self.careful = kwargs.get('careful', False) # Press enter for a bet.
         self.target = kwargs.get('target', float('inf')) # Greedy!
         self.nrolls = kwargs.get('nrolls', -1) # infinity rolls by default.
         self.simulation = kwargs.get('simulation', True)
@@ -110,6 +128,8 @@ class Strategy(object):
         # Press Control-C to stop early.
         try:
             while self.nrolls:
+                if self.careful:
+                    raw_input("Press enter for betting once.")
                 self.nrolls -= 1
                 self._roll()
         except KeyboardInterrupt:

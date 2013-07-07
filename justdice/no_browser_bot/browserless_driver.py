@@ -40,6 +40,7 @@ class JustDiceSocket(object):
         self.sock.on('reload', self.on_reload)
         self.sock.on('result', self.on_result)
         self.sock.on('login_error', self.on_login_error)
+        self.sock.on('jderror', self.on_jderror)
 
 
     def bet(self, win_chance, amount, roll_hi):
@@ -82,8 +83,9 @@ class JustDiceSocket(object):
         self.house_edge = data[u'edge']
 
         if data['username'] is None and self.login:
+            google_2fa = self.login.get('2fa', '')
             self.sock.emit('login', self.csrf,
-                    self.login['user'], self.login['pwd'], '')
+                    self.login['user'], self.login['pwd'], google_2fa)
         else:
             self.logged_in = True
 
@@ -92,3 +94,14 @@ class JustDiceSocket(object):
         if msg.startswith('incorrect') or msg.endswith('no such user'):
             self.logged_in = None
             raise Exception("Invalid credentials")
+        elif 'google' in msg or 'phone' in msg:
+            self.logged_in = None
+            raise Exception("2FA failed")
+        elif 'wrong too many' in msg:
+            self.logged_in = None
+            raise Exception("Blocked by 2FA, contact just-dice")
+
+    def on_jderror(self, msg):
+        if 'google-auth' in msg:
+            self.waiting_bet_result = None
+            raise Exception("2FA locked")
