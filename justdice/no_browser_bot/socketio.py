@@ -3,10 +3,11 @@
 #
 
 import socket
-import websocket
 from time import sleep
 from json import dumps, loads
 from threading import Thread, Event
+
+import websocket
 
 PROTOCOL = 1  # socket.io protocol version
 
