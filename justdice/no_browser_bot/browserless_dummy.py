@@ -68,3 +68,7 @@ class JustDiceSocket(object):
         if user_seed is None:
             user_seed = str(random.randint(0, int('9' * 24)))
         self.user_seed = user_seed
+
+
+    def on_reload(self):
+        pass
