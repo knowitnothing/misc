@@ -19,19 +19,12 @@ def play(justdice):
     win_chance = Decimal('2') # %.
 
     for _ in xrange(nroll):
-        if roll_dice(justdice, win_chance, amount, roll_hi):
+        if roll_dice(justdice, win_chance, amount, roll_hi, True)[0]:
             win += 1
 
-    return win, nroll
+    sys.stderr.write("\nWin ratio: %d/%d = %s\n" % (
+        win, nroll, Decimal(win) / nroll if nroll else 0))
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print "WARNING user and password were not specified."
-        print "Expected usage: %s user password [-dummy]" % sys.argv[0]
-        print "***" * 15
-
-    dummy = False
-    if len(sys.argv) == 4 and sys.argv[3].startswith('-d'):
-        dummy = True
-    main(play, *sys.argv[1:3], dummy=dummy)
+    main(play)
