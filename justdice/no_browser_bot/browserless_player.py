@@ -113,6 +113,7 @@ class Strategy(object):
         self.start_bet = kwargs['to_bet']
 
         # Game stats
+        self.wagered = 0
         self.unknown = 0
         self.nwin = 0
         self.total = 0
@@ -137,7 +138,8 @@ class Strategy(object):
 
         sys.stderr.write('\nWin ratio: %d/%d = %g\n' % (self.nwin, self.total,
             float(self.nwin)/self.total) if self.total else 0)
-        sys.stderr.write("Final bank roll: %s\n" % self.bankroll)
+        sys.stderr.write("Wagered: %s\n" % self.wagered)
+        sys.stderr.write("Final bank roll: %s\n" % format(self.bankroll,'.8f'))
         return self.bankroll
 
 
@@ -165,19 +167,20 @@ class Strategy(object):
 
 
     def _roll(self):
-        if self.bankroll < self.to_bet or (
+        self.pre_roll()
+
+        if not self.bankroll or self.bankroll < self.to_bet or (
                 self.bankroll - self.to_bet) < self.getout:
             # Can't play :/
             self.nrolls = 0
             return
-        elif self.bankroll >= self.target:
+        elif self.bankroll >= self.target or not self.nrolls:
             # Ok, I got enough (you wish).
             self.nrolls = 0
             return
 
-        self.pre_roll()
-
         sys.stdout.write('Bet: %s BTC\n' % format(self.to_bet, '.8f'))
+        self.wagered += self.to_bet
         roll_mode = 'HIGH' if self.roll_high else 'LOW'
         won_bet, num = roll_dice(self.justdice,
                 win_chance=self.win_chance,
