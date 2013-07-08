@@ -3,7 +3,6 @@ import time
 from decimal import Decimal
 
 def _handle_input(args):
-    login_info = None
     google_2fa = None
     if len(args) < 3:
         sys.stderr.write("WARNING user and password were not specified.\n")
@@ -41,6 +40,8 @@ def main(play, new_seed=True):
     response = load_justdice()
     if user is not None:
         login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa}
+    else:
+        login_info = None
     justdice = JustDiceSocket(response, login=login_info)
     max_login_wait = 15 # seconds
     sys.stderr.write("Logging in...")
