@@ -144,6 +144,8 @@ class Strategy(object):
 
         sys.stderr.write('\nWin ratio: %d/%d = %g\n' % (self.nwin, self.total,
             float(self.nwin)/self.total) if self.total else 0)
+        if self.unknown > 0:
+            sys.stderr.write("Unknown outcomes: %d\n" % self.unknown)
         sys.stderr.write("Wagered: %s\n" % self.wagered)
         sys.stderr.write("Final bank roll: %s\n" % format(self.bankroll,'.8f'))
         return self.bankroll
@@ -189,10 +191,12 @@ class Strategy(object):
         self.wagered += self.to_bet
         roll_mode = 'HIGH' if self.roll_high else 'LOW'
         self.total += 1
+        self.unknown += 1
         won_bet, num = roll_dice(self.justdice,
                 win_chance=self.win_chance,
                 amount=0 if self.simulation else self.to_bet,
                 roll_hi=self.roll_high)
+        self.unknown -= 1
 
         if won_bet:
             self.nwin += 1
