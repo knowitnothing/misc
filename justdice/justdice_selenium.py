@@ -4,7 +4,8 @@ import sys
 import time
 from decimal import Decimal
 from selenium.common.exceptions import (NoSuchElementException,
-                ElementNotVisibleException, StaleElementReferenceException)
+                ElementNotVisibleException, StaleElementReferenceException,
+                InvalidElementStateException)
 
 
 URL = 'https://just-dice.com'
@@ -65,7 +66,7 @@ class Justdice:
                 close = welcome_close_element(self.driver)
                 close.click()
                 break
-            except NoSuchElementException:
+            except (NoSuchElementException, InvalidElementStateException):
                 time.sleep(0.1)
 
     def wait_load(self, attempts=10):
