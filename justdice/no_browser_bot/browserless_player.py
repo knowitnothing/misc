@@ -2,9 +2,7 @@ import sys
 import time
 from decimal import Decimal
 
-def main(play, new_seed=True):
-    args = sys.argv
-
+def _handle_input(args):
     login_info = None
     google_2fa = None
     if len(args) < 3:
@@ -27,6 +25,13 @@ def main(play, new_seed=True):
                 dummy = True
             else:
                 google_2fa = args[3]
+
+    return user, pwd, google_2fa, dummy
+
+
+def main(play, new_seed=True):
+    user, pwd, google_2fa, dummy = _handle_input(sys.argv)
+
     if dummy:
         from browserless_dummy import load_justdice, JustDiceSocket
     else:
@@ -37,7 +42,7 @@ def main(play, new_seed=True):
     if user is not None:
         login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa}
     justdice = JustDiceSocket(response, login=login_info)
-    max_login_wait = 10 # seconds
+    max_login_wait = 15 # seconds
     sys.stderr.write("Logging in...")
     sys.stderr.flush()
     now = time.time()
@@ -62,9 +67,6 @@ def main(play, new_seed=True):
 
     try:
         play(justdice)
-        #win, total = play(justdice)
-        #sys.stderr.write("\nWin ratio: %d/%d = %s\n" % (
-        #    win, total, Decimal(win) / total if total else 0))
     finally:
         sys.stderr.write('Leaving..\n')
         justdice.sock.emit('disconnect')
@@ -99,6 +101,13 @@ class Strategy(object):
         self.house_edge = justdice.house_edge
         self.payout = None
 
+        self._orig_params = kwargs.copy()
+        self.setup()
+
+
+    def setup(self):
+        kwargs = self._orig_params
+
         # Required parameters.
         self.win_chance = kwargs['win_chance']
         self.to_bet = kwargs['to_bet']
@@ -118,14 +127,14 @@ class Strategy(object):
 
         self.start_bet = kwargs['to_bet']
 
+
+    def run(self):
         # Game stats
         self.wagered = 0
         self.unknown = 0
         self.nwin = 0
         self.total = 0
 
-
-    def run(self):
         sys.stdout.write("Strategy: %s\n" % self.strat_name.encode('utf-8'))
         sys.stdout.write("Starting with BANK of %s BTC\n" % format(
             self.bankroll, '.8f'))
@@ -143,7 +152,7 @@ class Strategy(object):
             pass
 
         sys.stderr.write('\nWin ratio: %d/%d = %g\n' % (self.nwin, self.total,
-            float(self.nwin)/self.total) if self.total else 0)
+            float(self.nwin)/self.total if self.total else 0))
         if self.unknown > 0:
             sys.stderr.write("Unknown outcomes: %d\n" % self.unknown)
         sys.stderr.write("Wagered: %s\n" % self.wagered)
