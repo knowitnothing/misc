@@ -37,11 +37,17 @@ def main(play, new_seed=True):
     if user is not None:
         login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa}
     justdice = JustDiceSocket(response, login=login_info)
+    max_login_wait = 10 # seconds
     sys.stderr.write("Logging in...")
     sys.stderr.flush()
+    now = time.time()
     while not justdice.logged_in:
+        if time.time() - now > max_login_wait:
+            # Timed out.
+            justdice.logged_in = None
         if justdice.logged_in is None:
             # Could not login.
+            sys.stderr.write(" Couldn't log in\n")
             justdice.sock.emit('disconnect')
             return
         sys.stderr.write('.')
@@ -182,12 +188,12 @@ class Strategy(object):
         sys.stdout.write('Bet: %s BTC\n' % format(self.to_bet, '.8f'))
         self.wagered += self.to_bet
         roll_mode = 'HIGH' if self.roll_high else 'LOW'
+        self.total += 1
         won_bet, num = roll_dice(self.justdice,
                 win_chance=self.win_chance,
                 amount=0 if self.simulation else self.to_bet,
                 roll_hi=self.roll_high)
 
-        self.total += 1
         if won_bet:
             self.nwin += 1
             self.bankroll += (self.to_bet * self.payout - self.to_bet)
