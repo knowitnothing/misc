@@ -38,6 +38,7 @@ class JustDiceSocket(object):
         self.waiting_bet_result = False
         self.last_bet = None
         self.house_edge = 1 # %
+        self.waiting_seed = False
 
         self.sock = _Dummy()
 
