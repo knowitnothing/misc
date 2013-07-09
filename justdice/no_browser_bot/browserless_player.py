@@ -28,13 +28,15 @@ def _handle_input(args):
     return user, pwd, google_2fa, dummy
 
 
-def main(play, new_seed=True):
+def main(play, new_seed=True, **kwargs):
     user, pwd, google_2fa, dummy = _handle_input(sys.argv)
 
     if dummy:
         from browserless_dummy import load_justdice, JustDiceSocket
     else:
         from browserless_driver import load_justdice, JustDiceSocket
+    if 'justdice' in kwargs:
+        JustDiceSocket = kwargs['justdice']
 
     sys.stderr.write("Connecting...\n")
     response = load_justdice()
@@ -62,8 +64,12 @@ def main(play, new_seed=True):
     sys.stderr.write('\n')
 
     if new_seed:
-        sys.stderr.write("Generating new server seed..\n")
+        sys.stderr.write("Generating new server seed..")
         justdice.randomize()
+        while justdice.waiting_seed:
+            sys.stderr.write('.')
+            sys.stderr.flush()
+            time.sleep(0.1)
         sys.stderr.write('\n')
 
     try:

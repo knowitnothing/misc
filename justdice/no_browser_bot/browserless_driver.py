@@ -31,6 +31,7 @@ class JustDiceSocket(object):
         self.waiting_bet_result = False
         self.last_bet = None
         self.house_edge = 1 # %
+        self.waiting_seed = False
 
         origin = BASE_URL
         self.sock = SocketIO(BASE_DOMAIN, origin, response, secure=True)
@@ -41,7 +42,14 @@ class JustDiceSocket(object):
         self.sock.on('result', self.on_result)
         self.sock.on('login_error', self.on_login_error)
         self.sock.on('jderror', self.on_jderror)
+        self.sock.on('new_client_seed', self.on_new_seed)
 
+        self.sock.on('chat', self.on_chat)
+
+    # Override if needed.
+    def on_chat(self, msg, timestamp):
+        pass
+    #
 
     def bet(self, win_chance, amount, roll_hi):
         if self.waiting_bet_result:
@@ -53,10 +61,16 @@ class JustDiceSocket(object):
 
     def randomize(self, user_seed=None):
         # user_seed must be a string.
+        if self.waiting_seed:
+            return
         self.sock.emit('random', self.csrf)
         if user_seed is None:
             user_seed = str(random.randint(0, int('9' * 24)))
         self.sock.emit('seed', self.csrf, user_seed, True)
+        self.waiting_seed = True
+
+    def on_new_seed(self, o_sseed, o_sshash, o_useed, old_nonce, new_sshash):
+        self.waiting_seed = False
 
     def on_result(self, result):
         if result['uid'] == self.user_id:
