@@ -385,7 +385,6 @@ class _SocketIO(object):
         except socket.error, e:
             text = 'Lost connection: %s' % e
             raise SocketIOConnectionError(text)
-        #print ">>", packet, "<<"
         try:
             packetParts = packet.split(':', 3)
         except AttributeError:
