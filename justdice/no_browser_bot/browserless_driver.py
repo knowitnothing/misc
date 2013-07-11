@@ -124,3 +124,5 @@ class JustDiceSocket(object):
         elif 'google-auth' in msg:
             self.waiting_bet_result = None
             raise Exception("2FA locked")
+        elif 'can not bet' in msg:
+            raise Exception("Could not place bet, check your balance")
