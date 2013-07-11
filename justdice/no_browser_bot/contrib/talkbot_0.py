@@ -8,7 +8,11 @@ import random
 import urllib2
 import hashlib
 from decimal import Decimal
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError, e:
+    print "show command not available. reason: %s" % e
+    BeautifulSoup = None
 
 import util
 from browserless_player import main
@@ -21,9 +25,10 @@ DB = "data.db"
 class ChatSocket(JustDiceSocket):
     def __init__(self, *args, **kwargs):
         self.delim = '/'
+        self.name = 'botty'
+
         self.name_pat = re.compile('^\<(.*?)\>')
         self.bet_pat = re.compile('https://just-dice.com/roll/(\d*)')
-        self.name = 'botty'
         self._bet_pending = []
         self._last_roll = 0
 
@@ -329,12 +334,14 @@ class ChatSocket(JustDiceSocket):
         self.nonce = 0
 
     def cmd_help(self):
-        self.sock.emit('chat', self.csrf, 'Help is coming! /show betid ;'
-                ' /roll ; /hash ; /randomize ;'
-                ' /mem userid message ; /read ; /top3 (win | lose) ;'
-                ' /math doyourmagic ; /whois userid '
-                ' /bet amount chance ; /track (list | sum) ;'
-                ' /track userid (start | stop | info) ; /bot')
+        cmds = ('roll', 'hash', 'randomize', 'mem userid message', 'read',
+                'top3 (win | lose)', 'whois', 'bet amount chance',
+                'track (list | sum)', 'track userid (start | stop | info)',
+                'bot')
+        if BeautifulSoup:
+            cmds += ('show betid', )
+        text = ' ; '.join(['%s%s' % (self.delim, c) for c in cmds])
+        self.sock.emit('chat', self.csrf, text)
 
     def cmd_read(self, uid):
         try:
@@ -357,6 +364,9 @@ class ChatSocket(JustDiceSocket):
             '07.4f')))
 
     def cmd_showbet(self, num):
+        if BeautifulSoup is None:
+            return
+
         text = ("Bet %(id)d %(win)s %(profit)s. "
                 "%(lucky)s %(gt)s %(target)s. Player: %(user)s [%(ago)s]")
         data = urllib2.urlopen(ROLL % num).read()
