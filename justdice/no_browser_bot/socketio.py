@@ -376,11 +376,11 @@ class _SocketIO(object):
     def recv_packet(self):
         try:
             packet = self.connection.recv()
-        except websocket.WebSocketConnectionClosedException:
-            text = 'Lost connection (Connection closed)'
+        except websocket.WebSocketConnectionClosedException, e:
+            text = 'Lost connection (Connection closed): %s' % e
             raise SocketIOConnectionError(text)
-        except socket.timeout:
-            text = 'Lost connection (Connection timed out)'
+        except socket.timeout, e:
+            text = 'Lost connection (Connection timed out): %s' % e
             raise SocketIOConnectionError(text)
         except socket.error, e:
             text = 'Lost connection: %s' % e

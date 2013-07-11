@@ -79,6 +79,7 @@ class JustDiceSocket(object):
                     'roll_high': result['high'],
                     'lucky_number': Decimal(result['lucky']) / 10000}
             self.waiting_bet_result = False
+            return True
 
     def on_reload(self):
         self.sock.emit('disconnect')
@@ -116,6 +117,10 @@ class JustDiceSocket(object):
             raise Exception("Blocked by 2FA, contact just-dice")
 
     def on_jderror(self, msg):
-        if 'google-auth' in msg:
+        msg = msg.lower()
+        if 'minimum allowed' in msg or 'maximum allowed' in msg:
+            self.waiting_bet_result = None
+            raise Exception("Invalid win chance")
+        elif 'google-auth' in msg:
             self.waiting_bet_result = None
             raise Exception("2FA locked")
