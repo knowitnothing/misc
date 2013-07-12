@@ -3,6 +3,7 @@ import urllib2
 import cookielib
 from decimal import Decimal
 
+import websocket
 from socketio import SocketIO
 
 BASE_DOMAIN = 'just-dice.com'
@@ -20,6 +21,7 @@ def load_justdice(proxy=None, headers=None, debug=False):
     """
     handler = []
     if debug:
+        websocket.enableTrace(True)
         handler.append(urllib2.HTTPSHandler(debuglevel=1))
     cookie_handler = urllib2.HTTPCookieProcessor(cj)
     handler.append(cookie_handler)
