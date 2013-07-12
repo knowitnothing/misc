@@ -9,9 +9,28 @@ BASE_DOMAIN = 'just-dice.com'
 BASE_URL = 'https://%s' % BASE_DOMAIN
 
 cj = cookielib.CookieJar()
-def load_justdice():
-    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-    opener.addheaders.append(('Origin', BASE_URL))
+def load_justdice(proxy=None, headers=None, debug=False):
+    """
+    "proxy" is expected to be a map from protocol to a proxy server.
+        e.g., proxy={'https': 'myproxy:port'} would use a proxy
+        for https requests.
+
+    "headers" should be a sequence of tuples to be added in each
+    request. e.g, headers=[('User-Agent', 'bot')]
+    """
+    handler = []
+    if debug:
+        handler.append(urllib2.HTTPSHandler(debuglevel=1))
+    cookie_handler = urllib2.HTTPCookieProcessor(cj)
+    handler.append(cookie_handler)
+    if proxy is not None:
+        proxy_handler = urllib2.ProxyHandler(proxy)
+        handler.append(proxy_handler)
+    opener = urllib2.build_opener(*handler)
+
+    headers = headers or []
+    headers.append(('Origin', BASE_URL))
+    opener.addheaders = headers
 
     opener.open(BASE_URL)
     req = opener.open('%s/socket.io/1' % BASE_URL)
