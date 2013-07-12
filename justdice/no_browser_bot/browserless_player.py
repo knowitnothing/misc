@@ -87,6 +87,9 @@ def roll_dice(justdice, win_chance, amount, roll_hi, verbose=False):
         sys.stdout.flush()
     justdice.bet(win_chance=win_chance, amount=amount, roll_hi=roll_hi)
     while justdice.waiting_bet_result:
+        if not justdice.sock.connected:
+            justdice.waiting_bet_result = None
+            break
         if verbose:
             sys.stdout.write('.')
             sys.stdout.flush()
