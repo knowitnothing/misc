@@ -52,3 +52,9 @@ Console output:
 Plot:
 
 ![perf](https://raw.github.com/knowitnothing/misc/master/justdice/no_browser_bot/img/perf_martingale1.png)
+
+
+Bitcoin Donations
+=================
+
+1BTCXAPHWyFheYWzM3mbWztEaX8GqCXiH3
