@@ -42,13 +42,8 @@ def load_justdice(secret_url=None, proxy=None, headers=None, debug=False):
     req = opener.open('%s/socket.io/1' % BASE_URL)
     # Grab the session in order to allow the websocket connection.
     response = req.read()
-    # Grab the secret url.
-    secret = None
-    for cookie in cj:
-        if cookie.name == 'hash':
-            secret = cookie.value
-            break
-    return response, secret
+
+    return response, current_secreturl()
 
 def login_on_secret_url(secret_url, user, pwd, google_2fa):
     # When using the secretl url with user/pwd defined,
@@ -65,6 +60,11 @@ def login_on_secret_url(secret_url, user, pwd, google_2fa):
     # Grab the new session in order to allow the websocket connection.
     response = req.read()
     return response
+
+def current_secreturl():
+    for cookie in cj:
+        if cookie.name == 'hash':
+            return cookie.value
 
 
 class JustDiceSocket(object):

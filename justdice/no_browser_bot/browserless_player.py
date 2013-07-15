@@ -49,8 +49,7 @@ def main(play, new_seed=True, **kwargs):
         response = login_on_secret_url(secret_url, user, pwd, google_2fa)
 
     if user is not None:
-        login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa,
-                      'secret': secret_url}
+        login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa}
     else:
         login_info = None
     justdice = JustDiceSocket(response, login=login_info)
