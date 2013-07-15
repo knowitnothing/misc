@@ -1,4 +1,5 @@
 import random
+import urllib
 import urllib2
 import cookielib
 from decimal import Decimal
@@ -10,7 +11,7 @@ BASE_DOMAIN = 'just-dice.com'
 BASE_URL = 'https://%s' % BASE_DOMAIN
 
 cj = cookielib.CookieJar()
-def load_justdice(proxy=None, headers=None, debug=False):
+def load_justdice(secret_url=None, proxy=None, headers=None, debug=False):
     """
     "proxy" is expected to be a map from protocol to a proxy server.
         e.g., proxy={'https': 'myproxy:port'} would use a proxy
@@ -34,8 +35,34 @@ def load_justdice(proxy=None, headers=None, debug=False):
     headers.append(('Origin', BASE_URL))
     opener.addheaders = headers
 
-    opener.open(BASE_URL)
+    if secret_url is not None:
+        opener.open('%s/%s' % (BASE_URL, secret_url))
+    else:
+        opener.open(BASE_URL)
     req = opener.open('%s/socket.io/1' % BASE_URL)
+    # Grab the session in order to allow the websocket connection.
+    response = req.read()
+    # Grab the secret url.
+    secret = None
+    for cookie in cj:
+        if cookie.name == 'hash':
+            secret = cookie.value
+            break
+    return response, secret
+
+def login_on_secret_url(secret_url, user, pwd, google_2fa):
+    # When using the secretl url with user/pwd defined,
+    # we need to POST login data to a different page.
+    data = urllib.urlencode({
+        'password': pwd, 'username': user, 'code': google_2fa or ''})
+    request = urllib2.Request('%s/%s' % (BASE_URL, secret_url), data)
+    cookie_handler = urllib2.HTTPCookieProcessor(cj)
+    opener = urllib2.build_opener(cookie_handler)
+    opener.addheaders = [('Origin', BASE_URL)]
+    opener.open(request)
+
+    req = opener.open('%s/socket.io/1' % BASE_URL)
+    # Grab the new session in order to allow the websocket connection.
     response = req.read()
     return response
 
@@ -104,7 +131,7 @@ class JustDiceSocket(object):
 
     def on_reload(self):
         self.sock.emit('disconnect')
-        response = load_justdice()
+        response, _ = load_justdice()
         self._setup_sock(response)
 
     def on_set_hash(self, new_cookie_hash):

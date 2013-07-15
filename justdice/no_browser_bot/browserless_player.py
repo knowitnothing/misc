@@ -1,47 +1,56 @@
 import sys
 import time
+import urllib
+import urllib2
 from decimal import Decimal
+from optparse import OptionParser
 
 def _handle_input(args):
+    parser = OptionParser()
+    parser.add_option('-d', '--dummy', action='store_true', dest='dummy',
+            default=False, help='Run offline')
+    parser.add_option('-s', '--secret', help='Pass a secret url')
+
+    options, args = parser.parse_args(args)
+
     google_2fa = None
-    if len(args) < 3:
+    user, pwd = None, None
+
+    if options.secret:
+        sys.stderr.write("Using secret url.\n")
+
+    if len(args) == 3:
+        user, pwd, google_2fa = args
+    elif len(args) == 2:
+        user, pwd = args
+    elif not options.secret:
         sys.stderr.write("WARNING user and password were not specified.\n")
         sys.stderr.write("Expected usage: %s user password [ga] [-dummy]\n" %
-                args[0])
+                sys.argv[0])
         sys.stderr.write("***" * 15 + '\n')
-        user, pwd = None, None
-    else:
-        user, pwd = args[1:3]
 
-    dummy = False
-    if len(args) >= 4:
-        if len(args) == 5:
-            google_2fa = args[3]
-            if args[4].startswith('-d'):
-                dummy = True
-        else:
-            if args[3].startswith('-d'):
-                dummy = True
-            else:
-                google_2fa = args[3]
-
-    return user, pwd, google_2fa, dummy
+    return user, pwd, google_2fa, options.dummy, options.secret
 
 
 def main(play, new_seed=True, **kwargs):
-    user, pwd, google_2fa, dummy = _handle_input(sys.argv)
+    user, pwd, google_2fa, dummy, secret_url = _handle_input(sys.argv[1:])
 
     if dummy:
         from browserless_dummy import load_justdice, JustDiceSocket
     else:
         from browserless_driver import load_justdice, JustDiceSocket
+        from browserless_driver import login_on_secret_url
     if 'justdice' in kwargs:
         JustDiceSocket = kwargs['justdice']
 
     sys.stderr.write("Connecting...\n")
-    response = load_justdice()
+    response, _ = load_justdice(secret_url=secret_url)
+    if not dummy and secret_url is not None and user is not None:
+        response = login_on_secret_url(secret_url, user, pwd, google_2fa)
+
     if user is not None:
-        login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa}
+        login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa,
+                      'secret': secret_url}
     else:
         login_info = None
     justdice = JustDiceSocket(response, login=login_info)
