@@ -1,7 +1,10 @@
 import hmac
-import random
 import hashlib
-
+try:
+    from Crypto.Random import random
+except ImportError:
+    # Cryptographically strong random numbers not available.
+    import random
 
 _chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._'
 def gen_server_seed(size=64):
