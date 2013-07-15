@@ -98,7 +98,7 @@ def strategy(justdice):
     max_bet_pct = Decimal('0.01')# Bet at max 1% of the current bankroll.
     breaker_pattern = [False, True, False] # Loss, Win, Loss
     breaker_bets = 4 # Number of bets to do after hitting the pattern above.
-    breaker_bet_amount = 0#Decimal('0.0001') # BTC
+    breaker_bet_amount = Decimal('0.0001') # BTC
 
     # Other settings.
     simulation = True # Only 0 BTC bets will be performed when this is True.
