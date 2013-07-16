@@ -8,10 +8,10 @@ from optparse import OptionParser
 from browserless_driver import login_on_secret_url
 
 def _handle_input(args):
-    parser = OptionParser()
+    parser = OptionParser(usage="usage: %prog user password [ga] [options]")
     parser.add_option('-d', '--dummy', action='store_true', dest='dummy',
-            default=False, help='Run offline')
-    parser.add_option('-s', '--secret', help='Pass a secret url')
+            default=False, help='Run offline (user/password not required)')
+    parser.add_option('-s', dest='secret', help='Pass a secret url')
 
     options, args = parser.parse_args(args)
 
@@ -25,7 +25,7 @@ def _handle_input(args):
         user, pwd, google_2fa = args
     elif len(args) == 2:
         user, pwd = args
-    elif not options.secret:
+    elif not options.secret and not options.dummy:
         sys.stderr.write("WARNING user and password were not specified.\n")
         sys.stderr.write("Expected usage: %s user password [ga] [-dummy]\n" %
                 sys.argv[0])
@@ -77,7 +77,10 @@ def main(play, new_seed=True, **kwargs):
         JustDiceSocket = kwargs['justdice']
 
     sys.stderr.write("Connecting...\n")
-    response = load_justdice(secret_url=secret_url)
+    if not dummy and secret_url is not None and user is not None:
+        response = None
+    else:
+        response = load_justdice(secret_url=secret_url)
     justdice = login(dummy, response, user, pwd, google_2fa, secret_url,
             JustDiceSocket)
     if justdice is None:
