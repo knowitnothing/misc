@@ -5,7 +5,7 @@ from browserless_driver import JustDiceSocket, load_justdice, current_secreturl
 
 def main(user, pwd, google_2fa=None):
     print "Connecting.."
-    response, _ = load_justdice()
+    response = load_justdice()
     print "Logging in.."
     justdice = JustDiceSocket(response,
             login={'user': user, 'pwd': pwd, '2fa': google_2fa})

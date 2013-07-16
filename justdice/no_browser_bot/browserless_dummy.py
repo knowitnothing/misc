@@ -24,7 +24,7 @@ def dice_roll(server_seed, client_seed, nonce):
 
 
 def load_justdice(*no_args, **no_kwargs):
-    return 'a:1:1:websocket', ''
+    return 'a:1:1:websocket'
 
 class _Dummy(object):
     def emit(*args): pass

@@ -26,7 +26,7 @@ class GetStats(JustDiceSocket):
         self.got_result = True
 
 print "Connecting.."
-response, _ = load_justdice()
+response = load_justdice()
 sys.stdout.write("Waiting for result..")
 justdice = GetStats('out.csv', response, None)
 now = time.time()

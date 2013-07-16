@@ -44,7 +44,7 @@ def main(play, new_seed=True, **kwargs):
         JustDiceSocket = kwargs['justdice']
 
     sys.stderr.write("Connecting...\n")
-    response, _ = load_justdice(secret_url=secret_url)
+    response = load_justdice(secret_url=secret_url)
     if not dummy and secret_url is not None and user is not None:
         response = login_on_secret_url(secret_url, user, pwd, google_2fa)
 
