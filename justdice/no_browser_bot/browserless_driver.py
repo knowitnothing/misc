@@ -44,14 +44,18 @@ def load_justdice(secret_url=None, proxy=None, headers=None, debug=False):
     response = req.read()
     return response
 
-def login_on_secret_url(secret_url, user, pwd, google_2fa=''):
+def login_on_secret_url(options):
     # When using the secretl url with user/pwd defined,
     # we need to POST login data to a different page.
-    data = urllib.urlencode({
-        'password': pwd, 'username': user, 'code': google_2fa})
-    request = urllib2.Request('%s/%s' % (BASE_URL, secret_url), data)
+    data = urllib.urlencode({'password': options.password,
+        'username': options.user, 'code': options.gauth})
+    request = urllib2.Request('%s/%s' % (BASE_URL, options.secret), data)
     cookie_handler = urllib2.HTTPCookieProcessor(cj)
-    opener = urllib2.build_opener(cookie_handler)
+    handler = [cookie_handler]
+    if options.proxy is not None:
+        proxy_handler = urllib2.ProxyHandler(options.proxy)
+        handler.append(proxy_handler)
+    opener = urllib2.build_opener(*handler)
     opener.addheaders = [('Origin', BASE_URL)]
     opener.open(request)
 

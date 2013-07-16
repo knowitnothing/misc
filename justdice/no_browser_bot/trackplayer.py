@@ -7,7 +7,7 @@ from decimal import Decimal
 from optparse import OptionParser
 
 from browserless_driver import JustDiceSocket, load_justdice
-from browserless_player import login
+from browserless_player import login, handle_input
 
 BGCOLOR_WIN = '#90CA77'
 BGCOLOR_LOSE = '#FDA0A4'
@@ -211,19 +211,11 @@ class GUI:
 
 
 def main():
-    parser = OptionParser()
-    # Login
-    parser.add_option('-s', '--secret', help='Pass a secret url')
-    parser.add_option('-u', '--user', help='User name for login')
-    parser.add_option('-p', '--password', help='User password')
-    parser.add_option('-g', '--gauth', help='2FA code')
-
-    options, args = parser.parse_args()
+    options = handle_input(enable_dummy=False)
 
     print "Connecting.."
-    response = load_justdice(secret_url=options.secret)
-    justdice = login(False, response, options.user, options.password,
-            options.gauth, options.secret, TrackResultSocket)
+    response = load_justdice(secret_url=options.secret, proxy=options.proxy)
+    justdice = login(response, options, TrackResultSocket)
     if justdice is None:
         # Login failed.
         return

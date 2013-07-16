@@ -7,40 +7,53 @@ from optparse import OptionParser
 
 from browserless_driver import login_on_secret_url
 
-def _handle_input(args):
+def handle_input(args=None, enable_dummy=True):
     parser = OptionParser(usage="usage: %prog user password [ga] [options]")
-    parser.add_option('-d', '--dummy', action='store_true', dest='dummy',
-            default=False, help='Run offline (user/password not required)')
+    if enable_dummy:
+        parser.add_option('-d', '--dummy', action='store_true', dest='dummy',
+                default=False, help='Run offline (user/password not required)')
     parser.add_option('-s', dest='secret', help='Pass a secret url')
+    parser.add_option('-u', dest='user', help='User name for login')
+    parser.add_option('-p', dest='password', help='User password')
+    parser.add_option('-g', dest='gauth', help='2FA code')
+    parser.add_option('-x', '--proxy', help='Connect through a HTTPS proxy')
 
     options, args = parser.parse_args(args)
 
     google_2fa = None
     user, pwd = None, None
 
+    if not enable_dummy:
+        options.dummy = False
+
     if options.secret:
         sys.stderr.write("Using secret url.\n")
+    if options.proxy:
+        sys.stderr.write("Using proxy.\n")
+        options.proxy = {'https': options.proxy}
 
     if len(args) == 3:
-        user, pwd, google_2fa = args
+        options.user, options.password, options.gauth = args
     elif len(args) == 2:
-        user, pwd = args
+        options.user, options.password = args
     elif not options.secret and not options.dummy:
         sys.stderr.write("WARNING user and password were not specified.\n")
         sys.stderr.write("Expected usage: %s user password [ga] [-dummy]\n" %
                 sys.argv[0])
         sys.stderr.write("***" * 15 + '\n')
 
-    return user, pwd, google_2fa, options.dummy, options.secret
+    return options
 
 
-def login(dummy, response, user, pwd, google_2fa, secret_url, JustDiceSocket):
+def login(response, options, JustDiceSocket):
     sys.stderr.write("Logging in...")
     sys.stderr.flush()
 
+    dummy, secret_url = options.dummy, options.secret
+    user, pwd, google_2fa = options.user, options.password, options.gauth
     # When using secret url, we need to POST the login data.
     if not dummy and secret_url is not None and user is not None:
-        response = login_on_secret_url(secret_url, user, pwd, google_2fa)
+        response = login_on_secret_url(options)
 
     if user is not None:
         login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa}
@@ -67,9 +80,9 @@ def login(dummy, response, user, pwd, google_2fa, secret_url, JustDiceSocket):
 
 
 def main(play, new_seed=True, **kwargs):
-    user, pwd, google_2fa, dummy, secret_url = _handle_input(sys.argv[1:])
+    options = handle_input(sys.argv[1:])
 
-    if dummy:
+    if options.dummy:
         from browserless_dummy import load_justdice, JustDiceSocket
     else:
         from browserless_driver import load_justdice, JustDiceSocket
@@ -77,12 +90,12 @@ def main(play, new_seed=True, **kwargs):
         JustDiceSocket = kwargs['justdice']
 
     sys.stderr.write("Connecting...\n")
-    if not dummy and secret_url is not None and user is not None:
+    if (not options.dummy and options.secret is not None and
+            options.user is not None):
         response = None
     else:
-        response = load_justdice(secret_url=secret_url)
-    justdice = login(dummy, response, user, pwd, google_2fa, secret_url,
-            JustDiceSocket)
+        response = load_justdice(secret_url=options.secret, proxy=options.proxy)
+    justdice = login(response, options, JustDiceSocket)
     if justdice is None:
         # Login failed.
         return
