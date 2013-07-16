@@ -5,6 +5,8 @@ import urllib2
 from decimal import Decimal
 from optparse import OptionParser
 
+from browserless_driver import login_on_secret_url
+
 def _handle_input(args):
     parser = OptionParser()
     parser.add_option('-d', '--dummy', action='store_true', dest='dummy',
@@ -32,19 +34,11 @@ def _handle_input(args):
     return user, pwd, google_2fa, options.dummy, options.secret
 
 
-def main(play, new_seed=True, **kwargs):
-    user, pwd, google_2fa, dummy, secret_url = _handle_input(sys.argv[1:])
+def login(dummy, response, user, pwd, google_2fa, secret_url, JustDiceSocket):
+    sys.stderr.write("Logging in...")
+    sys.stderr.flush()
 
-    if dummy:
-        from browserless_dummy import load_justdice, JustDiceSocket
-    else:
-        from browserless_driver import load_justdice, JustDiceSocket
-        from browserless_driver import login_on_secret_url
-    if 'justdice' in kwargs:
-        JustDiceSocket = kwargs['justdice']
-
-    sys.stderr.write("Connecting...\n")
-    response = load_justdice(secret_url=secret_url)
+    # When using secret url, we need to POST the login data.
     if not dummy and secret_url is not None and user is not None:
         response = login_on_secret_url(secret_url, user, pwd, google_2fa)
 
@@ -54,8 +48,6 @@ def main(play, new_seed=True, **kwargs):
         login_info = None
     justdice = JustDiceSocket(response, login=login_info)
     max_login_wait = 15 # seconds
-    sys.stderr.write("Logging in...")
-    sys.stderr.flush()
     now = time.time()
     while not justdice.logged_in:
         if time.time() - now > max_login_wait:
@@ -70,6 +62,27 @@ def main(play, new_seed=True, **kwargs):
         sys.stderr.flush()
         time.sleep(0.75)
     sys.stderr.write('\n')
+
+    return justdice
+
+
+def main(play, new_seed=True, **kwargs):
+    user, pwd, google_2fa, dummy, secret_url = _handle_input(sys.argv[1:])
+
+    if dummy:
+        from browserless_dummy import load_justdice, JustDiceSocket
+    else:
+        from browserless_driver import load_justdice, JustDiceSocket
+    if 'justdice' in kwargs:
+        JustDiceSocket = kwargs['justdice']
+
+    sys.stderr.write("Connecting...\n")
+    response = load_justdice(secret_url=secret_url)
+    justdice = login(dummy, response, user, pwd, google_2fa, secret_url,
+            JustDiceSocket)
+    if justdice is None:
+        # Login failed.
+        return
 
     if new_seed:
         sys.stderr.write("Generating new server seed..")
