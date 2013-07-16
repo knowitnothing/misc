@@ -1,7 +1,7 @@
 import ttk
 import time
 import Queue
-import shelve
+import sqlite3
 import Tkinter
 from decimal import Decimal
 from optparse import OptionParser
@@ -12,84 +12,130 @@ from browserless_player import login, handle_input
 BGCOLOR_WIN = '#90CA77'
 BGCOLOR_LOSE = '#FDA0A4'
 
-DB = 'data.db'
+DB = 'sqldata.db'
 
 class TrackResultSocket(JustDiceSocket):
     def __init__(self, *args, **kwargs):
         super(TrackResultSocket, self).__init__(*args, **kwargs)
-        self.db = shelve.open(DB)
-        self.queue = None
-        if not 'track' in self.db:
-            self.db['track'] = {}
+        self.db_conn = sqlite3.connect(DB)
+        self.db = self.db_conn.cursor()
 
-    def track(self, userid):
-        userid = str(userid)
-        if userid in self.db['track']:
+        sql_aggregate_table = """CREATE TABLE IF NOT EXISTS [track_summ] (
+                uid INTEGER PRIMARY KEY,
+                total_profit INTEGER, total_wagered INTEGER)"""
+        self.db.execute(sql_aggregate_table)
+
+        sql_track_table = """CREATE TABLE IF NOT EXISTS [track] (
+                betid INTEGER PRIMARY KEY,
+                uid INTEGER,
+                win INTEGER,
+                date INTEGER,
+                rolled INTEGER,
+                roll_hi INTEGER,
+                bet INTEGER, payout INTEGER, profit INTEGER,
+                FOREIGN KEY(uid) REFERENCES track_summ(uid)
+                    ON DELETE CASCADE)"""
+        self.db.execute(sql_track_table)
+        self.db.execute("CREATE INDEX IF NOT EXISTS uid_index ON track(uid)")
+        sql_trigger = """CREATE TRIGGER IF NOT EXISTS [track_update]
+                AFTER INSERT ON [track] BEGIN
+                    UPDATE track_summ SET
+                        total_profit = total_profit + NEW.profit,
+                        total_wagered = total_wagered + NEW.bet
+                        WHERE uid = NEW.uid;
+                END"""
+        self.db.execute(sql_trigger)
+
+        self.tracked = self._track_list()
+
+        self.queue = None
+
+    def track(self, userid, update_list=True):
+        if self._is_tracked(userid):
             # Already being tracked.
             return
-        data = self.db['track']
-        data[userid] = {'profit': 0, 'wagered': 0, 'name': set(), 'bet': []}
-        self.db['track'] = data
-        self.db.sync()
+        self.db.execute("""INSERT INTO track_summ
+                (uid, total_profit, total_wagered) VALUES (?, 0, 0)""",
+                (userid, ))
+        if update_list:
+            self.tracked = self._track_list()
+        self.db_conn.commit()
 
-    def untrack(self, userid):
-        userid = str(userid)
-        if userid not in self.db['track']:
+    def untrack(self, userid, update_list=True):
+        if self._is_tracked(userid) is None:
+            # User is not being tracked.
             return
-        data = self.db['track']
-        data.pop(userid)
-        self.db['track'] = data
-        self.db.sync()
+        self.db.execute("DELETE FROM track_summ WHERE uid = ?", (userid, ))
+        if update_list:
+            self.tracked = self._track_list()
+        self.db_conn.commit()
+
+    def bet_data(self, userid):
+        if self._is_tracked(userid) is None:
+            # No data.
+            return None
+        return self.db.execute("""SELECT
+            uid, date, betid, rolled, roll_hi, bet, payout, win, profit
+            FROM track WHERE uid = ? ORDER BY betid""", (userid, )).fetchall()
+
+    def summary_data(self, userid):
+        return self._is_tracked(userid)
+
+    def bet_add(self, bet):
+        self.db.execute("""INSERT INTO track
+                (uid, date, betid, rolled, roll_hi, bet, payout, win, profit)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", bet)
+        self.db_conn.commit()
+
+    def _is_tracked(self, userid):
+        query = "SELECT * FROM track_summ WHERE uid = ?"
+        return self.db.execute(query, (userid, )).fetchone()
+
+    def _track_list(self):
+        return [t[0] for t in self.db.execute(
+                "SELECT uid FROM track_summ ORDER BY uid")]
+
 
     def on_result(self, result):
-        if result['uid'] not in self.db['track']:
+        uid = int(result['uid'])
+        if uid not in self.tracked:
+            # User is not being tracked.
             return
-        data = self.db['track']
 
-        uid = result['uid']
         name = result['name']
         name = name[:name.rfind('(', 1)-1] # Remove (userid) from name.
-        data[uid]['name'].add(name)
-        profit = Decimal(result['this_profit'])
-        data[uid]['profit'] += profit
-        bet = Decimal(result['bet'])
-        data[uid]['wagered'] += bet
+        profit = int(Decimal(result['this_profit']) * Decimal('1e8'))
+        bet = int(Decimal(result['bet']) * Decimal('1e8'))
+        payout = int(Decimal(result['payout']) * Decimal('1e8'))
 
-        payout = Decimal(result['payout'])
-        new_bet = (uid, result['date'], result['betid'], result['lucky'],
-                result['high'], bet, payout, result['win'], profit)
+        new_bet = (uid, result['date'], int(result['betid']), result['lucky'],
+                int(result['high']), bet, payout, result['win'], profit)
+
         if self.queue:
-            self.queue.put((uid, data[uid]['profit'], data[uid]['wagered']))
             self.queue.put(new_bet)
-        data[uid]['bet'].append(new_bet)
-
-        self.db['track'] = data
-        self.db.sync()
 
 
 class GUI:
-    def __init__(self, root, justdice, queue_check=50):
+    def __init__(self, root, justdice, queue_check=100):
         self.root = root
-        self._tracked_users = sorted(map(int, justdice.db['track'].keys()))
-        if self._tracked_users:
-            self.trackid = self._tracked_users[0]
-        else:
-            self.trackid = 0 # No user being tracked for now.
+        self.sock_status = 'disconnected'
+        self.trackid = justdice.tracked[0] if justdice.tracked else 0
         self.justdice = justdice
         self.queue = justdice.queue
         self.queue_check = queue_check # check each n milliseconds
 
         self._setup_gui()
         self._preload()
+        self._update_title()
         self._update_display()
 
     def _setup_gui(self):
         pad = {'padx': 6, 'pady': 6}
         # Basic information.
         info = ttk.Frame()
-        title = ttk.Label(text=u'Tracking user')# %s' % self.trackid)
-        self.track_cb = ttk.Combobox(height=15, values=self._tracked_users)
-        self.track_cb.set(self._tracked_users[0])
+        title = ttk.Label(text=u'Tracking user')
+        self.track_cb = ttk.Combobox(height=15, values=self.justdice.tracked)
+        self.track_cb.set(self.trackid)
         self.track_cb.bind('<Return>', self._add_tracking)
         self.track_cb.bind('<<ComboboxSelected>>', self._change_tracking)
         track_add = ttk.Button(text=u'Add', command=self._add_tracking)
@@ -127,55 +173,62 @@ class GUI:
         container.grid_columnconfigure(0, weight=1)
         container.grid_rowconfigure(0, weight=1)
 
+    def _update_title(self):
+        conn = 'connected'
+        if not self.justdice.sock.connected:
+            conn = 'dis' + conn
+        if conn != self.sock_status:
+            self.sock_status = conn
+            self.root.wm_title(u'just-dice tracking - %s' % conn)
+        self.root.after(1000, self._update_title)
+
     def _update_display(self):
         try:
             data = self.queue.get(block=False)
         except Queue.Empty:
             pass
         else:
+            self.justdice.bet_add(data)
             if data[0] == self.trackid:
                 self._update_results(data)
         self.root.after(self.queue_check, self._update_display)
 
     def _preload(self):
         # Load data stored in database.
-        data = self.justdice.db['track'][str(self.trackid)]
-        self._update_results((None, data['profit'], data['wagered']))
-        for bet in data['bet']:
+        data = self.justdice.bet_data(self.trackid)
+        for bet in data or []:
             self._update_results(bet)
 
     def _update_results(self, data):
-        if len(data) == 3:
-            _, total_profit, total_wagered = data
-            self.wagered['text'] = u'Wagered: %s' % format(total_wagered, '.8f')
-            self.profit['text'] = u'Profit: %s' % format(total_profit, '.8f')
-            return
-
-        _, date, betid, lucky, roll_hi, bet, payout, win, profit = data
+        uid, date, betid, lucky, roll_hi, bet, payout, win, profit = data
+        _, total_profit, total_wagered = self.justdice.summary_data(uid)
+        total_profit = format(total_profit/1e8, '.8f')
+        total_wagered = format(total_wagered/1e8, '.8f')
+        self.wagered['text'] = u'Wagered: %s' % total_wagered
+        self.profit['text'] = u'Profit: %s' % total_profit
 
         house_edge = 1 # 1 %
+        payout = Decimal(payout) / Decimal('1e8')
         win_chance = (100 - house_edge) / payout
         roll_for = Decimal('99.9999') - win_chance if roll_hi else win_chance
 
         result = (time.ctime(date), betid, format(lucky / 10000., '07.4f'),
                 '%s %s' % ('>' if roll_hi else '<', format(roll_for, '07.4f')),
-                format(bet, '.8f'), '%sx' % format(payout, '.8f'),
-                '%s%s' % ('+' if win else '', format(profit, '.8f')))
-        print result[1:]
+                format(bet/1e8, '.8f'), '%sx' % format(payout, '.8f'),
+                '%s%s' % ('+' if win else '', format(profit/1e8, '.8f')))
         self.results.insert('', '0', values=result,
                 tag='win' if win else 'lose')
 
     def _reset_tracking(self):
-        self.justdice.untrack(self.trackid)
+        self.justdice.untrack(self.trackid, update_list=False)
         self._clear_display()
-        self.justdice.track(self.trackid)
+        self.justdice.track(self.trackid, update_list=False)
 
     def _remove_tracking(self):
         self.justdice.untrack(self.trackid)
         self._clear_display()
-        self._tracked_users = sorted(map(int, self.justdice.db['track'].keys()))
-        self.track_cb['values'] = self._tracked_users
-        self.trackid = self._tracked_users[0]
+        self.track_cb['values'] = self.justdice.tracked
+        self.trackid = self.justdice.tracked[0] if self.justdice.tracked else 0
         self.track_cb.set(self.trackid)
         self._preload()
 
@@ -189,21 +242,19 @@ class GUI:
     def _add_tracking(self, event=None):
         new_id = self.track_cb.get()
         try:
-            int(new_id)
+            new_id = int(new_id)
         except Exception:
             # Not an integer.
             return
         if new_id != self.trackid:
             self.trackid = new_id
             self.justdice.track(self.trackid)
-            self._tracked_users = sorted(map(int,
-                self.justdice.db['track'].keys()))
-            self.track_cb['values'] = self._tracked_users
+            self.track_cb['values'] = self.justdice.tracked
             self._clear_display()
             self._preload()
 
     def _change_tracking(self, event):
-        new_id = event.widget.get()
+        new_id = int(event.widget.get())
         if new_id != self.trackid:
             self.trackid = new_id
             self._clear_display()
@@ -222,7 +273,6 @@ def main():
 
     justdice.queue = Queue.Queue()
     root = Tkinter.Tk()
-    root.wm_title(u'just-dice tracking')
     gui = GUI(root, justdice)
     root.lift()
     root.mainloop()
