@@ -39,3 +39,9 @@ a crazy betting of 0.001 BTC at 0.2% winning chance, which worked (this time).
 
 After you are convinced your strategy can work, all you need to do is
 drop the "-d" flag and then it will be applied in the actual site.
+
+
+Bitcoin Donations
+=================
+
+1BTCXAPHWyFheYWzM3mbWztEaX8GqCXiH3
