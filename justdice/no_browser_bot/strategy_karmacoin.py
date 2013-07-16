@@ -1,18 +1,27 @@
 from decimal import Decimal
+from collections import deque
 
 from browserless_player import main, Strategy
 
 class MyStrategy(Strategy):
     def __init__(self, justdice, kwargs):
         super(MyStrategy, self).__init__(justdice, kwargs)
+        self.setup()
+
+    def setup(self):
+        super(MyStrategy, self).setup()
+
+        kwargs = self._orig_params
+
         self.max_losses_in_row = kwargs['max_losses_in_row']
         self.max_wins_in_row = kwargs['max_wins_in_row']
         self.num_rounds = kwargs['num_rounds']
         self.max_bet_pct = kwargs['max_bet_pct']
-        self.breaker_pattern = kwargs['breaker_pattern']
+        self.breaker_pattern = deque(kwargs['breaker_pattern'])
         self.breaker_bets = kwargs['breaker_bets']
         self.breaker_bet_amount = kwargs['breaker_bet_amount']
 
+        self.rem_rounds = self.num_rounds
         self.consec_win = 0
         self.consec_lose = 0
 
@@ -22,14 +31,12 @@ class MyStrategy(Strategy):
 
     def _init_pattern(self):
         self.hit_pattern = False
-        self.n_pat = 0
-        self.curr_pattern = [None] * len(self.breaker_pattern)
+        self.curr_pattern = deque(maxlen=len(self.breaker_pattern))
         self.rem_pattern_bet = 0
 
     def _update_pattern(self, win):
-        self.curr_pattern[self.n_pat] = win
-        self.n_pat = (self.n_pat + 1) % len(self.breaker_pattern)
-        if not self.n_pat and self.curr_pattern == self.breaker_pattern:
+        self.curr_pattern.append(win)
+        if self.curr_pattern == self.breaker_pattern:
             if not self.hit_pattern:
                 # Hit the pattern!
                 self._bet_before_pat = self.to_bet
@@ -56,8 +63,8 @@ class MyStrategy(Strategy):
         if self.consec_win >= self.max_wins_in_row:
             self.consec_win = 0
             self.to_bet = self.start_bet
-            self.num_rounds -= 1
-            if self.num_rounds <= 0:
+            self.rem_rounds -= 1
+            if self.rem_rounds <= 0:
                 # Stop now.
                 self.nrolls = 0
                 return
