@@ -68,9 +68,13 @@ class TrackResultSocket(JustDiceSocket):
 
 
 class GUI:
-    def __init__(self, root, trackid, justdice, queue_check=50):
+    def __init__(self, root, justdice, queue_check=50):
         self.root = root
-        self.trackid = trackid
+        self._tracked_users = sorted(map(int, justdice.db['track'].keys()))
+        if self._tracked_users:
+            self.trackid = self._tracked_users[0]
+        else:
+            self.trackid = 0 # No user being tracked for now.
         self.justdice = justdice
         self.queue = justdice.queue
         self.queue_check = queue_check # check each n milliseconds
@@ -83,15 +87,23 @@ class GUI:
         pad = {'padx': 6, 'pady': 6}
         # Basic information.
         info = ttk.Frame()
-        title = ttk.Label(text=u'Tracking user %s' % self.trackid)
+        title = ttk.Label(text=u'Tracking user')# %s' % self.trackid)
+        self.track_cb = ttk.Combobox(height=15, values=self._tracked_users)
+        self.track_cb.set(self._tracked_users[0])
+        self.track_cb.bind('<<ComboboxSelected>>', self._change_tracking)
+        track_add = ttk.Button(text=u'Add', command=self._add_tracking)
         reset_btn = ttk.Button(text=u'Reset', command=self._reset_tracking)
+        remove_btn = ttk.Button(text=u'Remove', command=self._remove_tracking)
         self.wagered = ttk.Label(text=u'Wagered: 0')
         self.profit = ttk.Label(text=u'Profit: 0')
         title.grid(column=0, row=0, in_=info, **pad)
-        reset_btn.grid(column=1, row=0, in_=info, **pad)
-        self.wagered.grid(column=0, row=1, columnspan=2, sticky='ew', in_=info,
+        self.track_cb.grid(column=1, row=0, in_=info, **pad)
+        track_add.grid(column=2, row=0, in_=info, **pad)
+        reset_btn.grid(column=3, row=0, in_=info, **pad)
+        remove_btn.grid(column=4, row=0, in_=info, **pad)
+        self.wagered.grid(column=0, row=1, columnspan=5, sticky='ew', in_=info,
                 **pad)
-        self.profit.grid(column=0, row=2, columnspan=2, sticky='ew', in_=info,
+        self.profit.grid(column=0, row=2, columnspan=5, sticky='ew', in_=info,
                 **pad)
         info.pack(fill='x')
 
@@ -126,7 +138,7 @@ class GUI:
 
     def _preload(self):
         # Load data stored in database.
-        data = self.justdice.db['track'][self.trackid]
+        data = self.justdice.db['track'][str(self.trackid)]
         self._update_results((None, data['profit'], data['wagered']))
         for bet in data['bet']:
             self._update_results(bet)
@@ -154,18 +166,51 @@ class GUI:
 
     def _reset_tracking(self):
         self.justdice.untrack(self.trackid)
+        self._clear_display()
+        self.justdice.track(self.trackid)
+
+    def _remove_tracking(self):
+        self.justdice.untrack(self.trackid)
+        self._clear_display()
+        self._tracked_users = sorted(map(int, self.justdice.db['track'].keys()))
+        self.track_cb['values'] = self._tracked_users
+        self.trackid = self._tracked_users[0]
+        self.track_cb.set(self.trackid)
+        self._preload()
+
+    def _clear_display(self):
         child = self.results.get_children('')
         if child:
             self.results.delete(*child)
         self.wagered['text'] = u'Wagered: 0'
         self.profit['text'] = u'Profit: 0'
-        print "Reset"
-        self.justdice.track(self.trackid)
+
+    def _add_tracking(self):
+        new_id = self.track_cb.get()
+        try:
+            int(new_id)
+        except Exception:
+            # Not an integer.
+            return
+        if new_id != self.trackid:
+            self.trackid = new_id
+            self.justdice.track(self.trackid)
+            self._tracked_users = sorted(map(int,
+                self.justdice.db['track'].keys()))
+            self.track_cb['values'] = self._tracked_users
+            self._clear_display()
+            self._preload()
+
+    def _change_tracking(self, event):
+        new_id = event.widget.get()
+        if new_id != self.trackid:
+            self.trackid = new_id
+            self._clear_display()
+            self._preload()
 
 
 def main():
     parser = OptionParser()
-    parser.add_option('-t', '--track', help='User id to track')
     # Login
     parser.add_option('-s', '--secret', help='Pass a secret url')
     parser.add_option('-u', '--user', help='User name for login')
@@ -173,9 +218,6 @@ def main():
     parser.add_option('-g', '--gauth', help='2FA code')
 
     options, args = parser.parse_args()
-    if options.track is None:
-        parser.error("--track is required")
-        return
 
     print "Connecting.."
     response = load_justdice(secret_url=options.secret)
@@ -186,10 +228,9 @@ def main():
         return
 
     justdice.queue = Queue.Queue()
-    justdice.track(options.track)
     root = Tkinter.Tk()
     root.wm_title(u'just-dice tracking')
-    gui = GUI(root, options.track, justdice)
+    gui = GUI(root, justdice)
     root.mainloop()
 
 
