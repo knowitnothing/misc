@@ -90,6 +90,7 @@ class GUI:
         title = ttk.Label(text=u'Tracking user')# %s' % self.trackid)
         self.track_cb = ttk.Combobox(height=15, values=self._tracked_users)
         self.track_cb.set(self._tracked_users[0])
+        self.track_cb.bind('<Return>', self._add_tracking)
         self.track_cb.bind('<<ComboboxSelected>>', self._change_tracking)
         track_add = ttk.Button(text=u'Add', command=self._add_tracking)
         reset_btn = ttk.Button(text=u'Reset', command=self._reset_tracking)
@@ -185,7 +186,7 @@ class GUI:
         self.wagered['text'] = u'Wagered: 0'
         self.profit['text'] = u'Profit: 0'
 
-    def _add_tracking(self):
+    def _add_tracking(self, event=None):
         new_id = self.track_cb.get()
         try:
             int(new_id)
@@ -231,6 +232,7 @@ def main():
     root = Tkinter.Tk()
     root.wm_title(u'just-dice tracking')
     gui = GUI(root, justdice)
+    root.lift()
     root.mainloop()
 
 
