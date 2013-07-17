@@ -5,6 +5,7 @@ import sqlite3
 import Tkinter
 from decimal import Decimal
 from optparse import OptionParser
+from collections import defaultdict
 
 from browserless_driver import JustDiceSocket, load_justdice
 from browserless_player import login, handle_input
@@ -24,7 +25,10 @@ class TrackResultSocket(JustDiceSocket):
                 uid INTEGER PRIMARY KEY,
                 total_profit INTEGER, total_wagered INTEGER)"""
         self.db.execute(sql_aggregate_table)
-
+        sql_name_table = """CREATE TABLE IF NOT EXISTS [name] (
+                uid INTEGER, nickname TEXT,
+                PRIMARY KEY(uid, nickname))"""
+        self.db.execute(sql_name_table)
         sql_track_table = """CREATE TABLE IF NOT EXISTS [track] (
                 betid INTEGER PRIMARY KEY,
                 uid INTEGER,
@@ -47,6 +51,8 @@ class TrackResultSocket(JustDiceSocket):
         self.db.execute(sql_trigger)
 
         self.tracked = self._track_list()
+        self.user_name = defaultdict(set)
+        self._tracked_name()
 
         self.queue = None
 
@@ -87,6 +93,17 @@ class TrackResultSocket(JustDiceSocket):
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", bet)
         self.db_conn.commit()
 
+    def name_add(self, (uid, name)):
+        try:
+            self.db.execute("""INSERT INTO name
+                    (uid, nickname) VALUES (?, ?)""", (uid, name))
+        except sqlite3.IntegrityError:
+            # Name already present
+            pass
+        else:
+            self.db_conn.commit()
+            self.user_name[uid].add(name)
+
     def _is_tracked(self, userid):
         query = "SELECT * FROM track_summ WHERE uid = ?"
         return self.db.execute(query, (userid, )).fetchone()
@@ -94,6 +111,11 @@ class TrackResultSocket(JustDiceSocket):
     def _track_list(self):
         return [t[0] for t in self.db.execute(
                 "SELECT uid FROM track_summ ORDER BY uid")]
+
+    def _tracked_name(self):
+        query = "SELECT uid, nickname FROM name"
+        for uid, name in self.db.execute(query):
+            self.user_name[uid].add(name)
 
 
     def on_result(self, result):
@@ -113,6 +135,7 @@ class TrackResultSocket(JustDiceSocket):
 
         if self.queue:
             self.queue.put(new_bet)
+            self.queue.put((uid, name))
 
 
 class GUI:
@@ -143,14 +166,17 @@ class GUI:
         remove_btn = ttk.Button(text=u'Remove', command=self._remove_tracking)
         self.wagered = ttk.Label(text=u'Wagered: 0')
         self.profit = ttk.Label(text=u'Profit: 0')
+        self.player_name = ttk.Label(text=u'Name: -')
         title.grid(column=0, row=0, in_=info, **pad)
         self.track_cb.grid(column=1, row=0, in_=info, **pad)
         track_add.grid(column=2, row=0, in_=info, **pad)
         reset_btn.grid(column=3, row=0, in_=info, **pad)
         remove_btn.grid(column=4, row=0, in_=info, **pad)
-        self.wagered.grid(column=0, row=1, columnspan=5, sticky='ew', in_=info,
+        self.player_name.grid(column=0, row=1, columnspan=4, sticky='ew',
+                in_=info, **pad)
+        self.profit.grid(column=0, row=2, columnspan=2, sticky='ew', in_=info,
                 **pad)
-        self.profit.grid(column=0, row=2, columnspan=5, sticky='ew', in_=info,
+        self.wagered.grid(column=2, row=2, columnspan=3, sticky='ew', in_=info,
                 **pad)
         info.pack(fill='x')
 
@@ -188,9 +214,14 @@ class GUI:
         except Queue.Empty:
             pass
         else:
-            self.justdice.bet_add(data)
-            if data[0] == self.trackid:
-                self._update_results(data)
+            if len(data) > 2:
+                self.justdice.bet_add(data)
+                if data[0] == self.trackid:
+                    self._update_results(data)
+            else:
+                self.justdice.name_add(data)
+                if data[0] == self.trackid:
+                    self._update_name()
         self.root.after(self.queue_check, self._update_display)
 
     def _preload(self):
@@ -198,6 +229,7 @@ class GUI:
         data = self.justdice.bet_data(self.trackid)
         for bet in data or []:
             self._update_results(bet)
+        self._update_name()
 
     def _update_results(self, data):
         uid, date, betid, lucky, roll_hi, bet, payout, win, profit = data
@@ -219,6 +251,10 @@ class GUI:
         self.results.insert('', '0', values=result,
                 tag='win' if win else 'lose')
 
+    def _update_name(self):
+        name = self.justdice.user_name[self.trackid]
+        self.player_name['text'] = u'Name: %s' % (', '.join(name))
+
     def _reset_tracking(self):
         self.justdice.untrack(self.trackid, update_list=False)
         self._clear_display()
@@ -238,6 +274,7 @@ class GUI:
             self.results.delete(*child)
         self.wagered['text'] = u'Wagered: 0'
         self.profit['text'] = u'Profit: 0'
+        self.player_name['text'] = u'Name: -'
 
     def _add_tracking(self, event=None):
         new_id = self.track_cb.get()
