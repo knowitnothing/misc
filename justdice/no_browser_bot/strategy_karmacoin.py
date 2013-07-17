@@ -93,19 +93,19 @@ def strategy(justdice):
     strat_name = u'karma.coin'
 
     bankroll = Decimal('1')      # BTC
-    win_chance = Decimal('65')   # %
-    to_bet = Decimal('0.000001') # Initial bet size (BTC)
-    win_multiplier = Decimal('3')
+    win_chance = Decimal('80')   # %
+    to_bet = Decimal('0.00015')  # Initial bet size (BTC)
+    win_multiplier = Decimal('6')
     roll_high = False
 
     # Custom options for this strategy.
     max_losses_in_row = 4        # Reset to the initial bet.
     max_wins_in_row = 2          # Reset to the initial bet.
-    num_rounds = 240
-    max_bet_pct = Decimal('0.01')# Bet at max 1% of the current bankroll.
-    breaker_pattern = [False, True, False] # Loss, Win, Loss
-    breaker_bets = 4 # Number of bets to do after hitting the pattern above.
-    breaker_bet_amount = Decimal('0.0001') # BTC
+    num_rounds = 24
+    max_bet_pct = Decimal('0.8') # Bet at max 80% of the current bankroll.
+    breaker_pattern = [False, True, False, True] # Loss, Win, Loss, Win
+    breaker_bets = 7 # Number of bets to do after hitting the pattern above.
+    breaker_bet_amount = Decimal('0.000075') # BTC
 
     # Other settings.
     simulation = True # Only 0 BTC bets will be performed when this is True.
