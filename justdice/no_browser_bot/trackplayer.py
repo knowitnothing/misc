@@ -37,8 +37,7 @@ class TrackResultSocket(JustDiceSocket):
                 rolled INTEGER,
                 roll_hi INTEGER,
                 bet INTEGER, payout INTEGER, profit INTEGER,
-                FOREIGN KEY(uid) REFERENCES track_summ(uid)
-                    ON DELETE CASCADE)"""
+                FOREIGN KEY(uid) REFERENCES track_summ(uid))"""
         self.db.execute(sql_track_table)
         self.db.execute("CREATE INDEX IF NOT EXISTS uid_index ON track(uid)")
         sql_trigger = """CREATE TRIGGER IF NOT EXISTS [track_update]
@@ -71,6 +70,7 @@ class TrackResultSocket(JustDiceSocket):
         if self._is_tracked(userid) is None:
             # User is not being tracked.
             return
+        self.db.execute("DELETE FROM track WHERE uid = ?", (userid, ))
         self.db.execute("DELETE FROM track_summ WHERE uid = ?", (userid, ))
         if update_list:
             self.tracked = self._track_list()
