@@ -144,9 +144,13 @@ class GUI:
         self.sock_status = 'disconnected'
         self.trackid = justdice.tracked[0] if justdice.tracked else 0
         self.justdice = justdice
+        self.reconnecting = False
+        self.reconnect_timeout = 5000 # milliseconds, * 2, * 4, * 8, * 16, * 1
         self.queue = justdice.queue
         self.queue_check = queue_check # check each n milliseconds
 
+        self._rec_mul = 4
+        self._rec_orig_timeout = (self.reconnect_timeout, 4)
         self._setup_gui()
         self._preload()
         self._update_title()
@@ -203,12 +207,27 @@ class GUI:
         conn = 'connected'
         if not self.justdice.sock.connected:
             conn = 'dis' + conn
+            self.root.wm_title(u'just-dice tracking - %s' % conn)
+            if not self.reconnecting:
+                try:
+                    self.justdice.sock.emit('disconnect')
+                except Exception, e:
+                    print 'emit disconnect failed: %s' % e
+                self._reconnect()
+        elif self.justdice.sock.connected:
+            self.reconnecting = False
+            self.reconnect_timeout, self._rec_mul = self._rec_orig_timeout
+
         if conn != self.sock_status:
             self.sock_status = conn
             self.root.wm_title(u'just-dice tracking - %s' % conn)
         self.root.after(1000, self._update_title)
 
     def _update_display(self):
+        if self.reconnecting:
+            self.root.after(self.queue_check, self._update_display)
+            return
+
         try:
             data = self.queue.get(block=False)
         except Queue.Empty:
@@ -298,6 +317,34 @@ class GUI:
             self._preload()
 
 
+    def _reconnect(self):
+        print "Trying to reconnect.."
+        self.reconnecting = True
+        options = self.justdice.options
+        try:
+            self.justdice.sock.disconnect()
+            response = load_justdice(secret_url=options.secret,
+                proxy = options.proxy)
+            new_justdice = login(response, options, TrackResultSocket)
+        except Exception, e:
+            print 'error reconnecting: %s' % e
+            new_justdice = None
+        if new_justdice is None:
+            print ("Reconnect failed, retrying in %g seconds" %
+                    self.reconnect_timeout)
+            self.root.after(self.reconnect_timeout, self._reconnect)
+            self.reconnect_timeout *= 2
+            self._rec_mul -= 1
+            if self._rec_mul < 0:
+                self.reconnect_timeout, self._rec_mul = self._rec_orig_timeout
+        else:
+            new_justdice.options = options
+            new_justdice.queue = self.justdice.queue
+            del self.justdice
+            self.justdice = new_justdice
+            print "Reconnected!"
+
+
 def main():
     options = handle_input(enable_dummy=False)
 
@@ -309,6 +356,7 @@ def main():
         return
 
     justdice.queue = Queue.Queue()
+    justdice.options = options
     root = Tkinter.Tk()
     gui = GUI(root, justdice)
     root.lift()
