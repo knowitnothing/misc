@@ -18,9 +18,14 @@ DB = 'sqldata.db'
 class TrackResultSocket(JustDiceSocket):
     def __init__(self, *args, **kwargs):
         super(TrackResultSocket, self).__init__(*args, **kwargs)
-        self.db_conn = sqlite3.connect(DB)
-        self.db = self.db_conn.cursor()
+        self.db_conn = None
+        self.db = None
+        self.queue = None
+        self.tracked = None
 
+    def _setup_db(self, db_conn):
+        self.db_conn = db_conn
+        self.db = db_conn.cursor()
         sql_aggregate_table = """CREATE TABLE IF NOT EXISTS [track_summ] (
                 uid INTEGER PRIMARY KEY,
                 total_profit INTEGER, total_wagered INTEGER)"""
@@ -53,7 +58,6 @@ class TrackResultSocket(JustDiceSocket):
         self.user_name = defaultdict(set)
         self._tracked_name()
 
-        self.queue = None
 
     def track(self, userid, update_list=True):
         if self._is_tracked(userid):
@@ -120,7 +124,7 @@ class TrackResultSocket(JustDiceSocket):
 
     def on_result(self, result):
         uid = int(result['uid'])
-        if uid not in self.tracked:
+        if self.tracked is None or uid not in self.tracked:
             # User is not being tracked.
             return
 
@@ -140,14 +144,18 @@ class TrackResultSocket(JustDiceSocket):
 
 class GUI:
     def __init__(self, root, justdice, queue_check=100):
+        self.db = sqlite3.connect(DB)
+        justdice._setup_db(self.db)
+
         self.root = root
         self.sock_status = 'disconnected'
         self.trackid = justdice.tracked[0] if justdice.tracked else 0
         self.justdice = justdice
         self.reconnecting = False
         self.reconnect_timeout = 5000 # milliseconds, * 2, * 4, * 8, * 16, * 1
-        self.queue = justdice.queue
+        self.queue = Queue.Queue()
         self.queue_check = queue_check # check each n milliseconds
+        justdice.queue = self.queue
 
         self._rec_mul = 4
         self._rec_orig_timeout = (self.reconnect_timeout, 4)
@@ -339,9 +347,10 @@ class GUI:
                 self.reconnect_timeout, self._rec_mul = self._rec_orig_timeout
         else:
             new_justdice.options = options
-            new_justdice.queue = self.justdice.queue
+            new_justdice.queue = self.queue
             del self.justdice
             self.justdice = new_justdice
+            self.justdice._setup_db(self.db)
             print "Reconnected!"
 
 
@@ -355,7 +364,6 @@ def main():
         # Login failed.
         return
 
-    justdice.queue = Queue.Queue()
     justdice.options = options
     root = Tkinter.Tk()
     gui = GUI(root, justdice)
