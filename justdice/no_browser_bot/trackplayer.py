@@ -330,7 +330,7 @@ class GUI:
             print 'error reconnecting: %s' % e
             new_justdice = None
         if new_justdice is None:
-            print ("Reconnect failed, retrying in %g seconds" %
+            print ("Reconnect failed, retrying in %g miliseconds" %
                     self.reconnect_timeout)
             self.root.after(self.reconnect_timeout, self._reconnect)
             self.reconnect_timeout *= 2
