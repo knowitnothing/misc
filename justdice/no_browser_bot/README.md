@@ -1,7 +1,8 @@
 Running the player
 ==================
 
-The only dependence to run this code is Python. To run the bot all you have to do is
+The only dependence to run this code is Python (supported versions: 2.6.x, 2.7.x).
+To run the bot all you have to do is
 
 	python player.py user password
 
