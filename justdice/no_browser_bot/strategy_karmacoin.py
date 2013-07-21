@@ -17,44 +17,55 @@ class MyStrategy(Strategy):
         self.max_wins_in_row = kwargs['max_wins_in_row']
         self.num_rounds = kwargs['num_rounds']
         self.max_bet_pct = kwargs['max_bet_pct']
-        self.breaker_pattern = deque(kwargs['breaker_pattern'])
-        self.breaker_bets = kwargs['breaker_bets']
-        self.breaker_bet_amount = kwargs['breaker_bet_amount']
+        self.breaker_pattern = kwargs['breaker_pattern']
 
         self.rem_rounds = self.num_rounds
         self.consec_win = 0
         self.consec_lose = 0
+        self.max_patt_len = max(len(patt) for patt in self.breaker_pattern)
 
         self._bet_before_pat = None
         self._init_pattern()
 
 
     def _init_pattern(self):
-        self.hit_pattern = False
-        self.curr_pattern = deque(maxlen=len(self.breaker_pattern))
+        self.active_pattern = None
+        self.curr_pattern = deque(maxlen=self.max_patt_len)
         self.rem_pattern_bet = 0
 
     def _update_pattern(self, win):
         self.curr_pattern.append(win)
-        if self.curr_pattern == self.breaker_pattern:
-            if not self.hit_pattern:
+
+        if not self.active_pattern:
+            for patt in self.breaker_pattern:
+                if len(patt) > len(self.curr_pattern):
+                    continue
+                for a, b in zip(reversed(self.curr_pattern), reversed(patt)):
+                    if a != b:
+                        break
+                else:
+                    # Found a matching pattern.
+                    self.active_pattern = self.breaker_pattern[patt]
+                    break
+            if self.active_pattern is not None:
                 # Hit the pattern!
                 self._bet_before_pat = self.to_bet
-                self.rem_pattern_bet = self.breaker_bets
-                self.hit_pattern = True
+                self.rem_pattern_bet = self.active_pattern['bets']
+                self.to_bet = self.active_pattern['amount']
 
-        if self.hit_pattern:
-            self.to_bet = self.breaker_bet_amount
+        if self.active_pattern:
             if self.rem_pattern_bet == 0:
                 # Resume the strategy.
                 self.to_bet = self._bet_before_pat
                 self._init_pattern()
             else:
                 self.rem_pattern_bet -= 1
+            return False
+        else:
+            return True
 
     def win(self):
-        self._update_pattern(True)
-        if self.hit_pattern:
+        if not self._update_pattern(True):
             return
 
         self.consec_win += 1
@@ -77,8 +88,7 @@ class MyStrategy(Strategy):
             self.to_bet = self.start_bet
 
     def lose(self):
-        self._update_pattern(False)
-        if self.hit_pattern:
+        if not self._update_pattern(False):
             return
 
         self.consec_win = 0
@@ -103,9 +113,13 @@ def strategy(justdice):
     max_wins_in_row = 2          # Reset to the initial bet.
     num_rounds = 24
     max_bet_pct = Decimal('0.8') # Bet at max 80% of the current bankroll.
-    breaker_pattern = [False, True, False, True] # Loss, Win, Loss, Win
-    breaker_bets = 7 # Number of bets to do after hitting the pattern above.
-    breaker_bet_amount = Decimal('0.000075') # BTC
+
+    breaker_pattern = {
+            (False, True, False, True): {
+                'bets': 7, 'amount': Decimal('0.000075')},
+            (False, False): {
+                'bets': 5, 'amount': Decimal('0')}
+    }
 
     # Other settings.
     simulation = True # Only 0 BTC bets will be performed when this is True.
