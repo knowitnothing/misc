@@ -4,6 +4,7 @@ import urllib
 import urllib2
 from decimal import Decimal
 from optparse import OptionParser
+from collections import deque
 
 from browserless_driver import login_on_secret_url
 
@@ -171,9 +172,15 @@ class Strategy(object):
         self.win_multiplier = kwargs.get('win_multiplier', 1)
         self.reset_on_win = kwargs.get('reset_on_win', False)
         self.reset_on_lose = kwargs.get('reset_on_lose', False)
+        # Store the amount of wins in the last n rounds.
+        # By default only the last result is stored.
+        self.last_nwin = kwargs.get('last_nwin', 0)
 
+        self.last_nwin_sum = 0
+        self.last_nlose_sum = 0
         self.start_bet = kwargs['to_bet']
-
+        self._last_nresults = deque(
+                maxlen=self.last_nwin if self.last_nwin > 0 else 1)
 
     def run(self):
         # Game stats
@@ -253,6 +260,10 @@ class Strategy(object):
                 amount=0 if self.simulation else self.to_bet,
                 roll_hi=self.roll_high)
         self.unknown -= 1
+
+        self._last_nresults.append(won_bet)
+        self.last_nwin_sum = sum(self._last_nresults)
+        self.last_nlose_sum = len(self._last_nresults) - self.last_nwin_sum
 
         if won_bet:
             self.nwin += 1
