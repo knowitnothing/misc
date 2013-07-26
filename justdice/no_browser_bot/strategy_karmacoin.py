@@ -36,26 +36,28 @@ class MyStrategy(Strategy):
     def _update_pattern(self, win):
         self.curr_pattern.append(win)
 
-        if not self.active_pattern:
-            for patt in self.breaker_pattern:
-                if len(patt) > len(self.curr_pattern):
-                    continue
-                for a, b in zip(reversed(self.curr_pattern), reversed(patt)):
-                    if a != b:
-                        break
-                else:
-                    # Found a matching pattern.
-                    self.active_pattern = self.breaker_pattern[patt]
+        clean_tobet = True if not self.active_pattern else False
+
+        for patt in self.breaker_pattern:
+            if len(patt) > len(self.curr_pattern):
+                continue
+            for a, b in zip(reversed(self.curr_pattern), reversed(patt)):
+                if a != b:
                     break
-            if self.active_pattern is not None:
-                # Hit the pattern!
-                self._bet_before_pat = self.to_bet
+            else:
+                # Found a matching pattern.
+                #print "Got into a pattern."
+                self.active_pattern = self.breaker_pattern[patt]
+                if clean_tobet:
+                    self._bet_before_pat = self.to_bet
                 self.rem_pattern_bet = self.active_pattern['bets']
                 self.to_bet = self.active_pattern['amount']
+                break
 
         if self.active_pattern:
             if self.rem_pattern_bet == 0:
                 # Resume the strategy.
+                #print "Resume."
                 self.to_bet = self._bet_before_pat
                 self._init_pattern()
             else:
