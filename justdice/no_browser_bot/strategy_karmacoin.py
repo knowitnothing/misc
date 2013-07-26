@@ -46,8 +46,16 @@ class MyStrategy(Strategy):
                     break
             else:
                 # Found a matching pattern.
-                #print "Got into a pattern."
                 self.active_pattern = self.breaker_pattern[patt]
+                check = ((self.last_nwin_sum + self.last_nlose_sum) *
+                        self.active_pattern['max_loss_ratio'])
+                if check < self.last_nlose_sum:
+                    #print "Pattern skipped: %s %s." % (check,
+                    #        self.last_nlose_sum)
+                    continue
+                #print "Got into a pattern: %s %s." % (check,
+                #        self.last_nlose_sum)
+
                 if clean_tobet:
                     self._bet_before_pat = self.to_bet
                 self.rem_pattern_bet = self.active_pattern['bets']
@@ -109,6 +117,8 @@ def strategy(justdice):
     to_bet = Decimal('0.00015')  # Initial bet size (BTC)
     win_multiplier = Decimal('6')
     roll_high = False
+    # Store how many winning rounds were there in the last n ones.
+    last_nwin = 100
 
     # Custom options for this strategy.
     max_losses_in_row = 4        # Reset to the initial bet.
@@ -118,9 +128,15 @@ def strategy(justdice):
 
     breaker_pattern = {
             (False, True, False, True): {
-                'bets': 7, 'amount': Decimal('0.000075')},
+                'bets': 7, 'amount': Decimal('0.000075'),
+                # Activate this pattern only if in the last n bets (100 above)
+                # there were at max max_loss_ratio * n losses.
+                'max_loss_ratio': Decimal('0.2')
+                },
             (False, False): {
-                'bets': 5, 'amount': Decimal('0')}
+                'bets': 5, 'amount': Decimal('0'),
+                # max_loss_ratio is not used for this pattern.
+                'max_loss_ratio': Decimal('1.1')}
     }
 
     # Other settings.
