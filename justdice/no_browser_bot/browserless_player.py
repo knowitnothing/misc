@@ -114,6 +114,8 @@ def main(play, new_seed=True, **kwargs):
         play(justdice)
     finally:
         sys.stderr.write('Leaving..\n')
+        if options.dummy:
+            sys.stderr.write('Secret seed: %s\n' % justdice.server_seed)
         justdice.sock.emit('disconnect')
 
 
