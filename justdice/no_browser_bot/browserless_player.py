@@ -46,7 +46,7 @@ def handle_input(args=None, enable_dummy=True):
     return options
 
 
-def login(response, options, JustDiceSocket):
+def login(response, options, JustDiceSocket, jdparams=None):
     sys.stderr.write("Logging in...")
     sys.stderr.flush()
 
@@ -60,7 +60,7 @@ def login(response, options, JustDiceSocket):
         login_info = {'user': user, 'pwd': pwd, '2fa': google_2fa}
     else:
         login_info = None
-    justdice = JustDiceSocket(response, login=login_info)
+    justdice = JustDiceSocket(response, login=login_info, params=jdparams)
     max_login_wait = 15 # seconds
     now = time.time()
     while not justdice.logged_in:

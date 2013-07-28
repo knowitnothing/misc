@@ -27,10 +27,13 @@ def load_justdice(*no_args, **no_kwargs):
     return 'a:1:1:websocket'
 
 class _Dummy(object):
+    def __init__(self):
+        self.connected = True
+
     def emit(*args): pass
 
 class JustDiceSocket(object):
-    def __init__(self, response, login):
+    def __init__(self, response, login, params=None):
         self.login = login
         self._setup_sock(response)
 

@@ -71,7 +71,7 @@ def current_secreturl():
 
 
 class JustDiceSocket(object):
-    def __init__(self, response, login):
+    def __init__(self, response, login, params=None):
         self.login = login
         self._setup_sock(response)
 
@@ -95,9 +95,21 @@ class JustDiceSocket(object):
         self.sock.on('jderror', self.on_jderror)
         self.sock.on('new_client_seed', self.on_new_seed)
 
+        self.sock.on('invest', self.on_invest)
+        self.sock.on('invest_error', self.on_invest_error)
+        self.sock.on('divest_error', self.on_divest_error)
+        self.sock.on('balance', self.on_balance)
         self.sock.on('chat', self.on_chat)
 
     # Override if needed.
+    def on_invest(self, invest, invest_pct):
+        pass
+    def on_invest_error(self, msg):
+        pass
+    def on_divest_error(self, msg):
+        pass
+    def on_balance(self, data):
+        pass
     def on_chat(self, msg, timestamp):
         pass
     #
