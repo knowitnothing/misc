@@ -47,13 +47,14 @@ class MyStrategy(Strategy):
             else:
                 # Found a matching pattern.
                 maxlossrat = self.breaker_pattern[patt]['max_loss_ratio']
+                nrolls = self.last_nwin_sum + self.last_nlose_sum
                 check = ((self.last_nwin_sum + self.last_nlose_sum) *
                          maxlossrat)
-                if check < self.last_nlose_sum:
-                    #print "Pattern skipped: %s %s." % (check,
+                if nrolls >= self.last_nwin and check < self.last_nlose_sum:
+                    #print "Pattern skipped: %s %s %s." % (check, nrolls,
                     #        self.last_nlose_sum)
                     continue
-                #print "Got into a pattern: %s %s." % (check,
+                #print "Got into a pattern: %s %s %s." % (check, nrolls,
                 #        self.last_nlose_sum)
 
                 self.active_pattern = self.breaker_pattern[patt]
