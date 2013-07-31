@@ -102,7 +102,8 @@ class JustDiceSocket(object):
         self.sock.on('chat', self.on_chat)
 
     # Override if needed.
-    def on_invest(self, invest, invest_pct):
+    def on_invest(self, *args):
+        # Expected args: invest, invest_pct, profit
         pass
     def on_invest_error(self, msg):
         pass
@@ -110,7 +111,8 @@ class JustDiceSocket(object):
         pass
     def on_balance(self, data):
         pass
-    def on_chat(self, msg, timestamp):
+    def on_chat(self, *args):
+        # Expected args: msg, timestamp
         pass
     #
 
